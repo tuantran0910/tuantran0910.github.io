@@ -1,29 +1,29 @@
 ---
-id: index
 title: Cloud Native Engineering Handbook
-slug: /
-sidebar_position: 0
-hide_title: true
+description: Understand how Kubernetes works and build platforms for production.
 ---
-import Link from '@docusaurus/Link';
 
-
-<div className="hero-home">
-  <div className="container">
-    <p style={{fontWeight:700,letterSpacing:'.15em',fontSize:'.8rem',color:'#6ee7c3'}}>A PRACTICAL CLOUD-NATIVE TEXTBOOK</p>
-    <h1>Understand how Kubernetes works. Build platforms for production.</h1>
-    <p>Follow the lessons in order or look up a specific topic. The handbook covers cluster architecture, control loops, practical YAML examples, reliability, security, and GKE.</p>
-    <p><Link className="button button--primary button--lg" to="/handbook/learning-path">Start the Learning Path</Link> <Link className="button button--outline button--secondary button--lg" to="/handbook/topics">Browse topics</Link></p>
-  </div>
-</div>
+Follow the lessons in order or jump to a specific topic. The handbook covers cluster architecture, control loops, practical YAML examples, reliability, security, and GKE.
 
 ## Two ways to use the handbook
 
-<div className="card-grid">
-  <Link className="topic-card" to="/handbook/learning-path"><h3>📖 Learning Path</h3><p>Go from fundamentals to advanced concepts, with each lesson building on the ones before it.</p></Link>
-  <Link className="topic-card" to="/handbook/topics"><h3>🧭 Topic Library</h3><p>Jump straight to networking, GitOps, scheduling, storage, SRE, security, or governance.</p></Link>
-  <Link className="topic-card" to="/handbook/reference/glossary"><h3>📚 Reference</h3><p>Find terms, common commands, debugging patterns, and official documentation.</p></Link>
-</div>
+<Cards>
+  <Card
+    title="Learning Path"
+    href="/handbook/learning-path"
+    description="Go from fundamentals to advanced concepts, with each lesson building on the ones before it."
+  />
+  <Card
+    title="Topic Library"
+    href="/handbook/topics"
+    description="Jump straight to networking, GitOps, scheduling, storage, SRE, security, or governance."
+  />
+  <Card
+    title="Reference"
+    href="/handbook/reference/glossary"
+    description="Find terms, common commands, debugging patterns, and official documentation."
+  />
+</Cards>
 
 :::note About the content
 The chapters were compiled from a series of technical lessons. Chapters without a complete original source are marked. Before using an example in production, verify it against your Kubernetes, GKE, or Istio version.

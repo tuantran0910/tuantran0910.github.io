@@ -1,6 +1,11 @@
 node_modules
-.docusaurus
+.next
+.source
+out
 build
+.docusaurus
 .env
 .DS_Store
+next-env.d.ts
+*.tsbuildinfo
 /src/data/search-index.json

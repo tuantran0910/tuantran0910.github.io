@@ -1,0 +1,9 @@
+{
+  "title": "Networking & Service Mesh",
+  "pages": [
+    "lesson-12-kubernetes-networking",
+    "lesson-13-gke-networking",
+    "lesson-14-istio",
+    "networking-exercises"
+  ]
+}

@@ -1,8 +1,10 @@
 .exercise {
-  margin: 1rem 0 2rem;
-  padding: 1rem;
-  border: 1px solid var(--ifm-color-emphasis-300);
-  border-radius: var(--ifm-global-radius);
+  margin: 1.25rem 0 2rem;
+  padding: 1.25rem;
+  border: 1px solid var(--color-fd-border);
+  border-radius: 0.75rem;
+  background: var(--color-fd-card);
+  color: var(--color-fd-card-foreground);
 }
 
 .controls {
@@ -11,6 +13,70 @@
   align-items: center;
   gap: 0.75rem 1rem;
   margin-bottom: 0.75rem;
+}
+
+.exercise label {
+  font-size: 0.9rem;
+  color: var(--color-fd-foreground);
+}
+
+.exercise select {
+  margin-left: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--color-fd-border);
+  border-radius: 0.4rem;
+  background: var(--color-fd-background);
+  color: var(--color-fd-foreground);
+  font-size: 0.875rem;
+}
+
+.exercise input[type='range'] {
+  display: block;
+  margin-top: 0.25rem;
+  accent-color: var(--color-fd-primary);
+}
+
+.exercise input[type='checkbox'],
+.exercise input[type='radio'] {
+  accent-color: var(--color-fd-primary);
+  margin-right: 0.35rem;
+}
+
+.exercise :global(.button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.45rem 0.9rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--color-fd-border);
+  transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+
+.exercise :global(.button:disabled) {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.exercise :global(.button--primary) {
+  background: var(--color-fd-primary);
+  color: var(--color-fd-primary-foreground);
+  border-color: var(--color-fd-primary);
+}
+
+.exercise :global(.button--primary:hover:not(:disabled)) {
+  opacity: 0.9;
+}
+
+.exercise :global(.button--secondary) {
+  background: var(--color-fd-secondary);
+  color: var(--color-fd-secondary-foreground);
+}
+
+.exercise :global(.button--secondary:hover:not(:disabled)) {
+  background: var(--color-fd-accent);
 }
 
 .preview {
@@ -25,10 +91,34 @@
 
 .preview pre {
   margin: 0.5rem 0;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-fd-border);
+  background: var(--color-fd-background);
+  overflow-x: auto;
+  font-size: 0.82rem;
 }
 
 .result {
   margin: 0.75rem 0 0;
+  font-size: 0.92rem;
+}
+
+.exercise dl.result {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem 1rem;
+  align-items: baseline;
+}
+
+.exercise dl.result dt {
+  color: var(--color-fd-muted-foreground);
+  font-weight: 500;
+}
+
+.exercise dl.result dd {
+  margin: 0;
+  font-weight: 600;
 }
 
 .barRow {
@@ -36,6 +126,7 @@
   grid-template-columns: 5.5rem minmax(0, 1fr) 3rem;
   align-items: center;
   gap: 0.5rem;
+  font-size: 0.85rem;
 }
 
 .barRow meter {
@@ -44,16 +135,24 @@
 
 .question {
   margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--color-fd-border);
+  border-radius: 0.5rem;
+  background: var(--color-fd-background);
 }
 
 .question legend {
   font-weight: 600;
+  padding: 0 0.35rem;
 }
 
 .question label {
   display: block;
+  margin: 0.3rem 0;
 }
 
 .question p {
   margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+  color: var(--color-fd-muted-foreground);
 }

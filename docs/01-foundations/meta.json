@@ -1,0 +1,8 @@
+{
+  "title": "Argo CD Internals & SSA",
+  "pages": [
+    "lesson-01-foundations",
+    "lesson-02-core-resources",
+    "lesson-03-cluster-architecture"
+  ]
+}

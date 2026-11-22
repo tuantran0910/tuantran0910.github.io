@@ -1,20 +1,49 @@
 ---
-id: topics
 title: Topic Library
-sidebar_position: 2
+description: Jump directly to a handbook topic or follow the 19-lesson learning path.
 ---
-
-import Link from '@docusaurus/Link';
 
 Pick a topic to read independently, or follow the [Learning Path](./learning-path.md) to study the lessons in order.
 
-<div className="card-grid">
-  <Link className="topic-card" to="/handbook/01-foundations/lesson-01-foundations"><h3>🧩 Argo CD &amp; SSA Internals</h3><p>Application controller, repo server, managedFields, legacy Structured Merge Diff, and Server-Side Diff.</p></Link>
-  <Link className="topic-card" to="/handbook/02-controllers-platform/lesson-04-controller-foundations"><h3>🔁 Controllers &amp; Operators</h3><p>ApplicationSet, Config Connector, Workload Identity, admission, and operators.</p></Link>
-  <Link className="topic-card" to="/handbook/03-gitops-delivery/lesson-10-progressive-delivery"><h3>🚀 GitOps &amp; Delivery</h3><p>Argo CD, platform bootstrap, canary and blue-green releases, and release analysis.</p></Link>
-  <Link className="topic-card" to="/handbook/05-networking/lesson-12-kubernetes-networking"><h3>🌐 Networking</h3><p>CNI, ClusterIP, EndpointSlice, kube-proxy, eBPF, GKE NEGs, and Istio.</p></Link>
-  <Link className="topic-card" to="/handbook/04-observability/lesson-11-observability"><h3>📈 Observability &amp; SRE</h3><p>Prometheus, RED, USE, SLIs, SLOs, and error budgets.</p></Link>
-  <Link className="topic-card" to="/handbook/06-compute-storage/lesson-15-scheduling"><h3>⚙️ Compute &amp; Storage</h3><p>Scheduler, HPA, Cluster Autoscaler, CSI, and StatefulSet.</p></Link>
-  <Link className="topic-card" to="/handbook/07-reliability/lesson-17-disaster-recovery"><h3>🛡️ Reliability</h3><p>Failure domains, HA/DR, backup, failover, RPO, and RTO.</p></Link>
-  <Link className="topic-card" to="/handbook/08-security-governance/lesson-18-security"><h3>🔐 Security &amp; Governance</h3><p>RBAC, Pod Security, supply chain security, quotas, and multi-tenancy.</p></Link>
-</div>
+<Cards>
+  <Card
+    title="Argo CD & SSA Internals"
+    href="/handbook/01-foundations/lesson-01-foundations"
+    description="Application controller, repo server, managedFields, legacy Structured Merge Diff, and Server-Side Diff."
+  />
+  <Card
+    title="Controllers & Operators"
+    href="/handbook/02-controllers-platform/lesson-04-controller-foundations"
+    description="ApplicationSet, Config Connector, Workload Identity, admission, and operators."
+  />
+  <Card
+    title="GitOps & Delivery"
+    href="/handbook/03-gitops-delivery/lesson-10-progressive-delivery"
+    description="Argo CD, platform bootstrap, canary and blue-green releases, and release analysis."
+  />
+  <Card
+    title="Networking"
+    href="/handbook/05-networking/lesson-12-kubernetes-networking"
+    description="CNI, ClusterIP, EndpointSlice, kube-proxy, eBPF, GKE NEGs, and Istio."
+  />
+  <Card
+    title="Observability & SRE"
+    href="/handbook/04-observability/lesson-11-observability"
+    description="Prometheus, RED, USE, SLIs, SLOs, and error budgets."
+  />
+  <Card
+    title="Compute & Storage"
+    href="/handbook/06-compute-storage/lesson-15-scheduling"
+    description="Scheduler, HPA, Cluster Autoscaler, CSI, and StatefulSet."
+  />
+  <Card
+    title="Reliability"
+    href="/handbook/07-reliability/lesson-17-disaster-recovery"
+    description="Failure domains, HA/DR, backup, failover, RPO, and RTO."
+  />
+  <Card
+    title="Security & Governance"
+    href="/handbook/08-security-governance/lesson-18-security"
+    description="RBAC, Pod Security, supply chain security, quotas, and multi-tenancy."
+  />
+</Cards>
