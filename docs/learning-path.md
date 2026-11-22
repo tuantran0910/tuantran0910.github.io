@@ -4,7 +4,7 @@ title: Learning Path — 19 Lessons
 sidebar_position: 1
 ---
 
-Study the lessons in order or jump to a topic. All 19 lessons were rewritten and expanded from earlier material. They are **not complete verbatim transcripts**. See each lesson's source note and the [content audit](./reference/content-audit.md) for verification status.
+Study the lessons in order or jump directly to a topic. Each lesson covers architecture, real-world manifests, failure modes, and hands-on verification.
 
 01. **[Lesson 01: Argo CD Internal Architecture & Reconciliation Mechanism](./01-foundations/lesson-01-foundations.md)** — Argo CD internals, GitOps desired state, application controller, repo server, live-state cache, sync, hooks, and drift.
 02. **[Lesson 02: Kubernetes Server-Side Apply, Field Ownership & Conflict Resolution](./01-foundations/lesson-02-core-resources.md)** — Server-Side Apply, managedFields, field managers, three-way merge, and conflicts.

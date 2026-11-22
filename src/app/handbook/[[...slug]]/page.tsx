@@ -15,9 +15,14 @@ export default async function Page(props: {
   if (!page) notFound();
 
   const MDX = page.data.body;
+  const hasToc = (page.data.toc?.length ?? 0) > 0;
 
   return (
-    <DocsPage toc={page.data.toc} full={page.data.full}>
+    <DocsPage
+      toc={hasToc ? page.data.toc : undefined}
+      full={page.data.full ?? !hasToc}
+      tableOfContent={{enabled: hasToc}}
+    >
       <DocsTitle>{page.data.title}</DocsTitle>
       {page.data.description && (
         <DocsDescription>{page.data.description}</DocsDescription>
