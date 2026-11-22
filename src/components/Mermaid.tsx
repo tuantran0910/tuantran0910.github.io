@@ -5,7 +5,7 @@ import {useEffect, useId, useState} from 'react';
 export function Mermaid({chart}: {chart: string}) {
   const id = useId().replace(/:/g, '');
   const [svg, setSvg] = useState<string>('');
-  const [isDark, setIsDark] = useState(true);
+  const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
     const checkTheme = () =>

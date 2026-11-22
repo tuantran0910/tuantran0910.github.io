@@ -20,8 +20,9 @@ export default function RootLayout({children}: {children: ReactNode}) {
       <body className="flex min-h-screen flex-col">
         <RootProvider
           theme={{
-            defaultTheme: 'dark',
-            enableSystem: true,
+            defaultTheme: 'light',
+            enableSystem: false,
+            storageKey: 'handbook-theme',
           }}
           search={{
             options: {
