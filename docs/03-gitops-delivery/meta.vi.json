@@ -1,0 +1,11 @@
+{
+  "title": "GitOps & Progressive Delivery",
+  "pages": [
+    "lesson-09-gitops-bootstrap",
+    "lesson-10-progressive-delivery",
+    "helm-kustomize",
+    "gitops-lab",
+    "gitops-promotion",
+    "gitops-exercises"
+  ]
+}

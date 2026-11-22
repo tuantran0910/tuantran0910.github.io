@@ -8,13 +8,13 @@ last_reviewed: 2026-11-22
 source_fidelity: editorial-reconstruction
 ---
 
-:::info Sources and editorial scope
-This lesson expands on the topic and verifiable content of the conversation, but it is **not a complete verbatim transcript**. Additional material was written for this website and may require version-specific testing before use in production.
-:::
-
 ## Learning objectives
 
-Alias IP, NEG, GKE Gateway, Cloud NAT, private clusters.
+- **Plan VPC-native IPv4 addressing and capacity:** Allocate primary node subnets, secondary Pod alias IP ranges, and Service CIDRs while sizing per-node Pod CIDR blocks to avoid autoscaler exhaustion.
+- **Understand container-native load balancing:** Trace how Google Cloud Application Load Balancers route directly to Pod endpoints via zonal `GCE_VM_IP_PORT` NEGs without an extra NodePort hop.
+- **Manage GKE Gateway API and health checks:** Reconcile `GatewayClass`, `Gateway`, `HTTPRoute`, and `HealthCheckPolicy` resources while respecting controller ownership boundaries with Terraform and Argo CD.
+- **Architect private clusters and outbound access:** Separate public HTTPS ingress, private nodes, Cloud NAT egress, Private Google Access, and IAM authorization across single-VPC and Shared VPC topologies.
+- **Triage cloud-to-Pod failures and multi-cluster exposure:** Diagnose HTTP 502/503 errors across DNS, Gateway conditions, NEG membership, VPC firewalls, and cloud probes, and export Services across fleets with MCS.
 
 ## VPC-native GKE
 
@@ -50,8 +50,6 @@ Private nodes can still serve public HTTPS through an external load balancer. Cl
 6. Application listener and response.
 
 **Official:** [GKE VPC-native](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/alias-ips) · [GKE Gateway](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/gateway-api).
-
-
 
 ## From the global load balancer to the Pod through a NEG
 
@@ -93,16 +91,12 @@ In a VPC-native cluster, nodes receive IP addresses from the primary subnet rang
 
 ### Request path from the internet to a Pod
 
-```text
-Client DNS
-  ↓
-Google Cloud external Application Load Balancer
-  ↓ URL map / routing rules
-Backend service
-  ↓ NEG (Pod endpoints when container-native load balancing is enabled)
-Pod IP:targetPort
-  ↓
-Application
+```mermaid
+flowchart TD
+  DNS["Client DNS"] --> ALB["Google Cloud external Application Load Balancer"]
+  ALB -->|"URL map / routing rules"| BS["Backend service"]
+  BS -->|"NEG (Pod endpoints via container-native LB)"| POD["Pod IP:targetPort"]
+  POD --> APP["Application"]
 ```
 
 The GKE Gateway and Ingress controllers reconcile Kubernetes Gateway, HTTPRoute, and Ingress resources into Google Cloud load balancing infrastructure. A `Gateway` reporting `Accepted` does not guarantee healthy backends. IAM, quotas, firewall rules, NEG endpoints, or health checks can still cause problems.

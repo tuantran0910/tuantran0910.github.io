@@ -8,13 +8,13 @@ last_reviewed: 2026-11-22
 source_fidelity: editorial-reconstruction
 ---
 
-:::info Sources and editorial scope
-This lesson builds on the topic and verifiable content from the conversation, but **it is not a complete verbatim transcript**. Supplemental material was written for the website and may require version-specific testing before use in production.
-:::
-
 ## Learning objectives
 
-Scheduler Filter/Score, requests/limits, HPA, VPA, GKE autoscaling.
+- **Trace the kube-scheduler pipeline:** Follow how `kube-scheduler` queues Pods, filters ineligible Nodes, scores feasible candidates, and binds workloads through Scheduling Framework extension points.
+- **Size resource requests, limits, and QoS classes:** Distinguish scheduling based on `NodeAllocatable` and requests from runtime Linux cgroup CPU throttling, memory OOM kills, and Guaranteed/Burstable/BestEffort eviction behavior.
+- **Design resilient Pod placement:** Combine `nodeSelector`, node affinity, taints and tolerations, `TopologySpreadConstraints`, and PodDisruptionBudgets without causing unintended Pending Pods during outages.
+- **Coordinate HPA, VPA, and GKE Cluster Autoscaler:** Apply the HPA scaling formula using request-based utilization or custom metrics, avoid VPA/HPA CPU feedback loops, and diagnose capacity bottlenecks across quota, IP, and node-pool limits.
+- **Debug scheduling and scaling failures systematically:** Separate unbound `FailedScheduling` Pods from bound startup issues and manage `spec.replicas` field ownership safely alongside Argo CD.
 
 ## Scheduler: Filter → Score → Bind
 
@@ -56,8 +56,6 @@ kubectl get events -A --sort-by=.lastTimestamp
 
 **Official:** [Kubernetes Scheduler](https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/) · [HPA](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/).
 
-
-
 ## Scheduler: Filter First, Then Score
 
 The scheduler checks whether Nodes can accommodate a Pod before ranking them. If a Node does not have enough allocatable CPU to cover the Pod's **requests**, it is ineligible even if `kubectl top nodes` reports low CPU usage. The Scheduling Framework includes extension points such as PreFilter, Filter, Score, Reserve, Permit, and Bind, along with other plugin hooks.
@@ -81,9 +79,13 @@ CPU limits are typically enforced through cgroup quotas and throttling; exceedin
 
 ### From HPA to Node Autoscaling
 
-```text
-HPA computes desired replicas → Deployment creates Pods → Scheduler tries to place
-  → Pending Pods can trigger Cluster Autoscaler → Node provision → scheduling resumes
+```mermaid
+flowchart LR
+  A["HPA computes desired replicas"] --> B["Deployment creates Pods"]
+  B --> C["Scheduler tries to place"]
+  C --> D["Pending Pods trigger Cluster Autoscaler"]
+  D --> E["Node provisioned"]
+  E --> F["Scheduling resumes"]
 ```
 
 HPA CPU utilization is based on the ratio of usage to requests. Setting a low request increases utilization even when absolute usage is not high. The HPA metrics API, missing metrics, and stabilization windows affect actual scaling. The Cluster Autoscaler cannot fix a ResourceQuota violation or accommodate a Pod whose request exceeds the capacity of every Node template.
@@ -100,16 +102,12 @@ VPA adjusts resource requests, while HPA adjusts the replica count. When HPA use
 
 Scheduling a new Pod typically starts in a queue. The Scheduling Framework includes `QueueSort`, `PreFilter`, `Filter`, `PostFilter` (where preemption may be attempted), `PreScore`, `Score`, `Reserve`, `Permit`, `PreBind`, `Bind`, and `PostBind`. Not every extension point always has an active plugin. Some extension points belong to the scheduling cycle and others to the binding cycle.
 
-```text
-Pod Pending (spec.nodeName empty)
-   ↓ scheduler queue
-Filter candidate Nodes: CPU/memory requests, volume, taints, affinity
-   ↓ feasible Nodes
-Score candidates: spread/resources/affinity weights
-   ↓ chosen Node
-Reserve/Permit/PreBind/Bind
-   ↓ Pod.spec.nodeName
-Kubelet on Node starts containers
+```mermaid
+flowchart TD
+  A["Pod Pending (spec.nodeName empty)"] -->|scheduler queue| B["Filter candidate Nodes (CPU/memory requests, volume, taints, affinity)"]
+  B -->|feasible Nodes| C["Score candidates (spread/resources/affinity weights)"]
+  C -->|chosen Node| D["Reserve / Permit / PreBind / Bind"]
+  D -->|Pod.spec.nodeName| E["Kubelet on Node starts containers"]
 ```
 
 The scheduler determines feasibility primarily by comparing **resource requests** with `NodeAllocatable`, not by looking at the usage reported by `kubectl top node`. For example, a Node with 8 allocatable CPUs and existing requests totaling 7 CPUs can leave a new Pod requesting 2 CPUs Pending, even if the workloads currently use only 1 CPU. Remember to account for DaemonSet requests, Pod overhead, init-container resource accounting, and the maximum Pods per Node.

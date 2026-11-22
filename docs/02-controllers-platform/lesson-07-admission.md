@@ -8,16 +8,15 @@ last_reviewed: 2026-11-22
 source_fidelity: editorial-reconstruction
 ---
 
-:::info Source status
-This material was **reconstructed from the sequence of topics and the source material still available**. The exact original title and full text have not been verified, so this lesson is not presented as a verbatim quotation.
-:::
-
 # Lesson 07: Kubernetes Admission Controllers & Policy
 
 ## Learning objectives
 
-Master **mutating and validating admission, webhooks, and CEL policies**, understand controller and ownership boundaries, and apply these concepts in a test cluster lab.
-
+- **Locate admission in the Kubernetes API request pipeline:** Trace how write requests move through authentication, authorization, mutating admission, validating admission, and etcd persistence, and understand why admission complements rather than replaces RBAC.
+- **Compare mutating webhooks, validating webhooks, and CEL policies:** Understand how `AdmissionReview` payloads and JSON Patches work, and decide when to use in-process `ValidatingAdmissionPolicy` (CEL) versus external HTTPS webhooks.
+- **Author and scope `ValidatingAdmissionPolicy` rules:** Write CEL expressions with `ValidatingAdmissionPolicyBinding`, `namespaceSelector`, `paramKind`, and staged `Warn`, `Audit`, and `Deny` enforcement actions.
+- **Design resilient webhooks for production:** Evaluate `failurePolicy` (`Fail` vs. `Ignore`), timeouts, TLS certificates, `reinvocationPolicy`, and `sideEffects` to prevent webhook outages from blocking cluster operations.
+- **Reason about admission interactions with GitOps:** Handle server-side dry runs, mutation-induced diffs in Argo CD (`ServerSideDiff` and `IncludeMutationWebhook`), and downstream Pod admission rejections during controller rollouts.
 
 ## 1. Where does admission happen?
 
@@ -419,13 +418,15 @@ In simplified terms, a Kubernetes API request goes through authentication, autho
 
 Example flow for creating a Pod with an Istio sidecar:
 
-```text
-Deployment → ReplicaSet controller → Pod CREATE
-     → API Server admission
-     → mutating sidecar injection (when configured)
-     → validation / Pod Security
-     → Pod persisted
-     → scheduler / kubelet
+```mermaid
+flowchart TD
+  A["Deployment"] --> B["ReplicaSet controller"]
+  B --> C["Pod CREATE"]
+  C --> D["API Server admission"]
+  D --> E["Mutating sidecar injection (when configured)"]
+  E --> F["Validation / Pod Security"]
+  F --> G["Pod persisted"]
+  G --> H["Scheduler / kubelet"]
 ```
 
 This is a conceptual flow. Do not rely on a particular ordering among multiple mutating webhooks. Review reinvocation, `namespaceSelector`, `objectSelector`, timeouts, and side effects.

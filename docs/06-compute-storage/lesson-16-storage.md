@@ -8,13 +8,13 @@ last_reviewed: 2026-11-22
 source_fidelity: editorial-reconstruction
 ---
 
-:::info Sources and editorial scope
-This lesson builds on the topic and verifiable content from the conversation, but **it is not a complete verbatim transcript**. Supplemental material was written for the website and may require version-specific testing before use in production.
-:::
-
 ## Learning objectives
 
-PVC, PV, StorageClass, CSI, StatefulSet, GKE storage, snapshots.
+- **Distinguish PVC, PV, StorageClass, and CSI responsibilities:** Trace how dynamic provisioning, volume attachment, staging, and publishing move a volume from claim creation to a mounted Pod filesystem.
+- **Coordinate storage topology with scheduling:** Use `WaitForFirstConsumer` binding mode to align zonal disk provisioning with Pod placement and avoid zone-mismatch `FailedScheduling` errors.
+- **Select appropriate access modes and GKE storage backends:** Compare `ReadWriteOnce`, `ReadWriteOncePod`, and `ReadWriteMany` alongside Zonal/Regional Persistent Disk, Hyperdisk, Filestore, and Cloud Storage trade-offs.
+- **Manage StatefulSet identity and data retention safely:** Control ordinal storage lifecycles via `volumeClaimTemplates`, `persistentVolumeClaimRetentionPolicy`, PV `reclaimPolicy`, and GitOps pruning safeguards.
+- **Differentiate VolumeSnapshots from complete database backups:** Pair CSI snapshots with database-native backups, WAL archiving, PITR, and restore drills to meet RPO/RTO targets and triage Pending or Multi-Attach errors.
 
 ## PV, PVC, StorageClass
 
@@ -87,8 +87,6 @@ A CSI VolumeSnapshot can capture a point-in-time snapshot, but application consi
 
 **Official:** [Persistent Volumes](https://kubernetes.io/docs/concepts/storage/persistent-volumes/) · [StatefulSet](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/).
 
-
-
 ## CSI Lifecycle: A PV Is More Than a Disk
 
 A PVC requests storage; the StorageClass selects a provisioner; the CSI external-provisioner calls `CreateVolume`; attachment components may use `VolumeAttachment`; and the CSI node plugin stages and publishes the volume. A `Bound` PVC does not prove that the filesystem is mounted or that the database is healthy.
@@ -143,16 +141,16 @@ A VolumeSnapshot can capture a crash-consistent point-in-time disk state, but it
 
 A `Bound` PVC does not mean that the volume has been attached and mounted or that the database is ready. Track the entire lifecycle:
 
-```text
-PVC + StorageClass
-  → external-provisioner / CSI CreateVolume
-  → PV created & bound
-  → scheduler evaluates volume topology
-  → external-attacher / VolumeAttachment if needed
-  → CSI ControllerPublishVolume
-  → CSI NodeStageVolume / NodePublishVolume
-  → kubelet mounts into Pod
-  → application validates filesystem and data
+```mermaid
+flowchart TD
+  A["PVC + StorageClass"] --> B["external-provisioner / CSI CreateVolume"]
+  B --> C["PV created and bound"]
+  C --> D["Scheduler evaluates volume topology"]
+  D --> E["external-attacher / VolumeAttachment (if needed)"]
+  E --> F["CSI ControllerPublishVolume"]
+  F --> G["CSI NodeStageVolume / NodePublishVolume"]
+  G --> H["kubelet mounts into Pod"]
+  H --> I["Application validates filesystem and data"]
 ```
 
 CSI calls depend on the driver's capabilities. An NFS or other network file service does not necessarily attach the same way as a block disk.

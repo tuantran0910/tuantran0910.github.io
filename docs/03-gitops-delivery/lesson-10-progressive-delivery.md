@@ -8,13 +8,13 @@ last_reviewed: 2026-11-22
 source_fidelity: editorial-reconstruction
 ---
 
-:::info Sources and editorial scope
-This lesson expands on the topic and discussion material that could be verified, but **it is not a complete verbatim transcript**. The additional sections were written for this website and may require testing against the specific versions you plan to run in production.
-:::
-
 ## Learning objectives
 
-RollingUpdate, canary, blue-green, Argo Rollouts, AnalysisTemplate.
+- **Configure reliable Kubernetes `RollingUpdate` foundations:** Coordinate `maxSurge`, `maxUnavailable`, `minReadySeconds`, startup/readiness/liveness probes, graceful shutdown, and `PodDisruptionBudget` to avoid user-facing downtime.
+- **Separate GitOps delivery from progressive rollout orchestration:** Understand how Argo CD syncs desired `Rollout` specs while Argo Rollouts manages ReplicaSets, traffic routers, pauses, promotions, and aborts.
+- **Design canary and blue-green release strategies:** Compare replica-based versus traffic-weighted canaries and active/preview blue-green switches, scoping Argo CD `ignoreDifferences` cleanly at the controller boundary.
+- **Gate releases with metric-driven `AnalysisTemplate` checks:** Query per-revision Prometheus SLIs with minimum sample floors, handle `Failed` and `Inconclusive` outcomes safely, and account for retry amplification.
+- **Reconcile aborts and schema changes safely in GitOps:** Diagnose why an aborted rollout leaves Git out of sync with serving traffic, and pair Git reverts or roll-forwards with expand–migrate–contract database migrations.
 
 ## RollingUpdate is the foundation
 
@@ -86,8 +86,6 @@ Use an `AnalysisTemplate` with Prometheus to check metrics such as a success rat
 4. Try pausing, promoting, and aborting, and compare what you observe with Argo CD status.
 
 **Official:** [Argo Rollouts Canary](https://argo-rollouts.readthedocs.io/en/stable/features/canary/) · [Kubernetes Deployments](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/).
-
-
 
 ## Failure-mode walkthrough: zero downtime takes more than replicas
 

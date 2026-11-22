@@ -1,0 +1,135 @@
+---
+title: "Bài tập tương tác GitOps"
+sidebar_position: 23
+tags: [gitops, argocd, helm, kustomize]
+---
+
+import {ManifestExercise, SyncExercise, JitterExercise, ArgoQuiz, SsaConflictExercise, ApplyComparisonExercise, StructuredMergeExercise, ApplicationMatrixExercise, ApplicationSetQuiz, PromotionExercise, ReleaseChecklist, GitOpsSecurityQuiz, AdmissionQuiz, WebAppReconcileExercise, OperatorQuiz} from '@site/src/components/GitOpsExercises';
+
+## Render một môi trường
+
+Chọn một công cụ sinh manifest và một môi trường. So sánh những trường đầu vào nào thay đổi và chúng tạo ra những trường Deployment nào. Bản xem trước minh họa các đoạn trích manifest thay vì thực thi Helm hoặc Kustomize trong trình duyệt.
+
+<ManifestExercise />
+
+Tiếp tục với phần hướng dẫn đầy đủ về [Helm và Kustomize](./helm-kustomize.md).
+
+## Mô phỏng auto-sync và self-heal
+
+Bắt đầu với năm replica đang chạy ở một revision đã được sync trước đó. Chọn một Git revision mới hoặc một chỉnh sửa trực tiếp trên cluster. Hãy dự đoán kết quả trước khi cho controller chạy tiếp. Mỗi lần nhấn nút mô phỏng một lượt so sánh và, nếu đủ điều kiện, một lần sync thành công. Trên cluster thật, quá trình này sẽ tốn thêm thời gian để render, kiểm tra quyền, xếp hàng thao tác và rollout workload.
+
+<SyncExercise />
+
+Tái hiện kịch bản này trong [bài lab thực hành GitOps](./gitops-lab.md).
+
+## Quan sát cách jitter phân tán công việc refresh
+
+Giả sử có 1.000 Application đủ điều kiện refresh cùng một lúc. Điều chỉnh độ trễ tối đa được cộng thêm vào chu kỳ cơ sở 120 giây. Biểu đồ sử dụng phân phối đều minh họa để cùng một thiết lập luôn cho ra cùng một kết quả. Dung lượng hàng đợi và thời gian xử lý nằm ngoài phạm vi mô hình này.
+
+<JitterExercise />
+
+## Mô phỏng xung đột trường trong SSA
+
+Bắt đầu với `team-a` sở hữu `spec.replicas: 3`. Thử apply giá trị 5 với tư cách `team-b`. Sau khi gặp xung đột, hãy apply giá trị 3 để chia sẻ quyền sở hữu. Tiếp theo, thử thay đổi giá trị đang được chia sẻ và quan sát điều gì xảy ra khi có và không có cờ force. Trình mô phỏng này chỉ mô hình hóa một trường trên một đối tượng đã tồn tại. Bài lab trên cluster cũng đề cập cách một owner từ bỏ quyền sở hữu trường bằng cách lược bỏ trường đó khỏi intent tiếp theo.
+
+<SsaConflictExercise />
+
+Tiếp tục với [bài lab quyền sở hữu SSA](../01-foundations/lesson-02-core-resources.md#isolate-the-conflict-to-one-field).
+
+## So sánh CSA và SSA sau khi có drift trực tiếp
+
+Deployment đang chạy bắt đầu với tám replica. Chọn phương thức apply và khai báo tiếp theo. Trong kịch bản CSA, hộp kiểm điều khiển việc annotation `last-applied` trước đó có chứa `replicas` hay không. Trong kịch bản SSA độc lập, một manager bên ngoài đang sở hữu số replica trực tiếp. Bài tập này mô phỏng từng lựa chọn từ cùng một đối tượng live ban đầu và giả định Deployment áp dụng giá trị mặc định thông thường, không có đột biến từ admission hay thay đổi đồng thời.
+
+<ApplyComparisonExercise />
+
+Đọc [bài tính toán patch chi tiết](../01-foundations/lesson-02-core-resources.md#trace-the-same-replica-drift-through-csa-and-ssa) trước khi thử server dry-run.
+
+## So sánh quyền sở hữu danh sách atomic và danh sách theo khóa
+
+Cùng một tài nguyên chứa các backend payment và logging. Trong trường hợp atomic, Manager A sở hữu toàn bộ danh sách. Trong trường hợp theo khóa (keyed), Manager A sở hữu các trường của payment và định danh mục logging, còn URL đang chạy của logging chưa có owner. Manager B bắt đầu mà không sở hữu trường nào. Chuyển đổi schema danh sách, intent gửi lên và tùy chọn force. Mỗi lựa chọn đều bắt đầu từ cùng một trạng thái live.
+
+<StructuredMergeExercise />
+
+Thử [bài lab APIConfig](../01-foundations/lesson-03-cluster-architecture.md#install-an-apiconfig-crd-with-two-list-topologies) để kiểm tra các tập trường thực tế.
+
+## Mô phỏng ApplicationSet Matrix
+
+Chọn các thư mục dịch vụ và tên cluster đã đăng ký. Mỗi thư mục được chọn sẽ được ghép cặp với mọi cluster được chọn. Kết quả liệt kê tên các Application CR mong muốn. Bỏ chọn một cluster trong bản xem trước này sẽ loại bỏ các tổ hợp tương ứng khỏi tập mong muốn. Trên cluster thật, chính sách ApplicationSet và các deletion finalizer sẽ quyết định điều gì xảy ra với những Application và workload hiện có.
+
+<ApplicationMatrixExercise />
+
+Xem [Matrix ApplicationSet đầy đủ](../02-controllers-platform/lesson-04-controller-foundations.md#combine-services-with-eligible-cluster-registrations).
+
+## Kiểm tra hiểu biết về ApplicationSet
+
+<ApplicationSetQuiz />
+
+Tiếp tục với [thiết kế repository và promotion giữa các môi trường](./gitops-promotion.md).
+
+## Promote một bản phát hành qua các môi trường
+
+Môi trường Development đã chạy image ứng viên và vượt qua các bước kiểm tra. Hãy promote cùng artifact đó lên staging, sau đó yêu cầu kết quả kiểm thử staging và phê duyệt production trước khi cập nhật production. Bài tập này mô phỏng các thay đổi đối với cấu hình triển khai. Các cổng phát hành và quá trình reconcile đều được mô phỏng.
+
+<PromotionExercise />
+
+Đọc [hướng dẫn đầy đủ về promotion và rollback](./gitops-promotion.md).
+
+## Theo dõi bài lab GitOps cho production
+
+Sử dụng danh sách kiểm tra này song song với [quy trình phát hành](./gitops-promotion.md#verify-the-workflow-in-a-lab). Đánh dấu hoàn thành từng mục sau khi xác minh kết quả.
+
+<ReleaseChecklist />
+
+## Kiểm tra hiểu biết về bảo mật GitOps
+
+Theo dõi giá trị secret từ nhà cung cấp bên ngoài tới tiến trình đang chạy, sau đó xác định tầng nào ủy quyền cho yêu cầu API.
+
+<GitOpsSecurityQuiz />
+
+Ôn lại [Workload Identity và External Secrets](../02-controllers-platform/lesson-06-workload-identity-secrets.md) và [ràng buộc chính sách admission](../02-controllers-platform/lesson-07-admission.md#apply-one-policy-with-different-enforcement).
+
+## Kiểm tra hiểu biết về admission control
+
+Lần theo cách một webhook thay đổi đối tượng, điều gì xảy ra khi lời gọi bị quá thời gian chờ, và admission ảnh hưởng thế nào đến dự đoán của Argo CD.
+
+<AdmissionQuiz />
+
+Ôn lại [Admission Controllers và Policy](../02-controllers-platform/lesson-07-admission.md) và thử [bài lab SSA dry-run](../02-controllers-platform/lesson-07-admission.md#exercise-the-api-pipeline-with-ssa-and-server-dry-run).
+
+## Reconcile một WebApp
+
+Chỉnh sửa số replica mong muốn của WebApp, chạy reconcile, sau đó scale Deployment trực tiếp rồi chạy reconcile lại. Một controller thực tế nhận các yêu cầu này thông qua watch và hàng đợi. Ở đây nút bấm mô phỏng việc xử lý một yêu cầu dựa trên trạng thái hiện tại. Số lượng của Deployment là `spec.replicas`; trạng thái sẵn sàng của rollout nằm ngoài trình mô phỏng.
+
+<WebAppReconcileExercise />
+
+Thử chạy lần thứ hai sau khi số lượng đã khớp. Bộ đếm số lần chạy sẽ tăng lên mà không phát sinh thêm lượt ghi nào vào Deployment. Xem [bài lab controller WebApp](../02-controllers-platform/lesson-08-operators.md#scaffold-and-implement-the-webapp-operator).
+
+## Kiểm tra hiểu biết về Operator
+
+<OperatorQuiz />
+
+## Kiểm tra kiến thức của bạn
+
+Chọn một đáp án cho mỗi câu hỏi và kiểm tra lập luận của bạn.
+
+<ArgoQuiz />
+
+import {RollingUpdateExercise, CanaryAnalysisExercise, ProgressiveDeliveryQuiz} from '@site/src/components/GitOpsExercises';
+
+## Mô phỏng Deployment rolling update
+
+Đi từng bước qua quá trình cập nhật bốn replica với một slot surge và không cho phép bất khả dụng. Mô hình bỏ qua các Pod đang terminate và chỉ hiển thị những trạng thái tiêu biểu. Trạng thái readiness, lập lịch và quá trình kết thúc Pod sẽ quyết định mốc thời gian thực tế.
+
+<RollingUpdateExercise />
+
+## Đánh giá một phép đo canary
+
+Chọn tỷ trọng lưu lượng và nhập số lượng request quan sát được, tỷ lệ thành công và độ trễ P95. Tỷ trọng lưu lượng chỉ mô tả mức độ tiếp xúc và không tự tạo hay làm thay đổi các số đo. Bài tập này đánh giá một cửa sổ đo. Một AnalysisRun thực tế có thể đánh giá nhiều cửa sổ và áp dụng giới hạn riêng cho kết quả thất bại, chưa đủ kết luận và lỗi.
+
+<CanaryAnalysisExercise />
+
+## Kiểm tra hiểu biết về progressive delivery
+
+<ProgressiveDeliveryQuiz />
+
+Tiếp tục với [bài học đầy đủ về progressive delivery](./lesson-10-progressive-delivery.md).

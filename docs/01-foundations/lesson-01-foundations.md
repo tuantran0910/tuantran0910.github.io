@@ -8,16 +8,15 @@ last_reviewed: 2026-11-22
 source_fidelity: editorial-reconstruction
 ---
 
-:::info Source status
-The title and topic were cross-checked against the conversation history. The content below is a **detailed editorial reconstruction**, not a verbatim transcript of the entire original response.
-:::
-
 # Lesson 01: Argo CD Internal Architecture & Reconciliation Mechanism
 
 ## Learning objectives
 
-Develop a solid understanding of **Argo CD internals, GitOps desired state, the application controller, the repo server, the live-state cache, sync, hooks, and drift**. Learn where controller responsibilities and ownership boundaries lie, and apply that knowledge in a lab on a test cluster.
-
+- **Argo CD internal architecture:** Distinguish the roles of `argocd-server`, `argocd-repo-server`, `argocd-application-controller`, Redis, and Kubernetes etcd in declaring and reconciling `Application` resources.
+- **Reconciliation loop and refresh mechanics:** Trace how Git webhooks, periodic polling with jitter, manifest rendering, and the live-state cache converge cluster state under eventual consistency.
+- **Diff strategies and sync orchestration:** Compare legacy diff with Server-Side Diff, and sequence dependent rollouts safely using sync waves and lifecycle hooks (`PreSync`, `Sync`, `PostSync`).
+- **Drift, self-healing, and field ownership:** Separate `Synced` status from `Healthy` readiness and avoid controller tug-of-war (such as Argo CD vs. HPA on `spec.replicas`) through clear ownership and targeted `ignoreDifferences`.
+- **Failure isolation and recovery:** Diagnose errors across rendering, comparison, admission, and runtime layers, and verify why restarting Argo CD leaves running workloads intact.
 
 ## 1. What problem does GitOps solve?
 
@@ -88,12 +87,14 @@ spec:
 5. **Apply:** The Kubernetes API server handles admission and persistence; the controller cannot bypass RBAC or validation policies.
 6. **Assess:** The health assessment logic uses resource-specific checks to identify states such as `Progressing`, `Healthy`, and `Degraded`.
 
-```text
-Git commit changes → repository refresh → render → compare → sync
-                                                      ↓
-                                      Kubernetes admission + controllers
-                                                      ↓
-                                         status/health reconciliation
+```mermaid
+flowchart LR
+  Git["Git commit changes"] --> Refresh["Repository refresh"]
+  Refresh --> Render["Render manifests"]
+  Render --> Compare["Compare desired vs. live"]
+  Compare --> Sync["Sync apply"]
+  Sync --> K8s["Kubernetes admission + controllers"]
+  K8s --> Health["Status / health reconciliation"]
 ```
 
 A webhook from the Git provider can reduce the time it takes to detect a commit. Without a webhook, Argo CD supports periodic repository polling; the interval and jitter depend on the configuration. Do not hard-code a timing value as your GitOps SLO.

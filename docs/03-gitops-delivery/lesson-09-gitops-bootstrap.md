@@ -8,13 +8,13 @@ last_reviewed: 2026-11-22
 source_fidelity: editorial-reconstruction
 ---
 
-:::info Sources and editorial scope
-This lesson expands on the topic and discussion material that could be verified, but **it is not a complete verbatim transcript**. The additional sections were written for this website and may require testing against the specific versions you plan to run in production.
-:::
-
 ## Learning objectives
 
-Terraform, Argo CD App-of-Apps, ApplicationSet, controller ownership.
+- **Separate Day-0, Day-1, and Day-2 platform responsibilities:** Break the bootstrap chicken-and-egg cycle by provisioning GKE and IAM with Terraform, seeding Argo CD safely, and handing ongoing reconciliation to GitOps.
+- **Enforce single authoritative ownership across control planes:** Define clear boundaries between Terraform, Argo CD, Config Sync, Config Connector, and ESO to prevent drift tug-of-war and field-management conflicts.
+- **Structure multi-component delivery with App-of-Apps and ApplicationSet:** Compare bootstrapping patterns and centralized versus per-cluster topologies, protecting root inputs and repository credentials.
+- **Sequence dependencies with sync waves and readiness gates:** Distinguish CRD registration from controller readiness, ordering namespaces, CRDs, operators, and workloads without mistaking sync waves for external health checks.
+- **Plan disaster recovery and safe cluster decommissioning:** Protect stateful data and shared CRDs from unintended pruning, maintain break-glass bootstrap procedures, and tear down external resources before destroying cluster infrastructure.
 
 ## Day 0, Day 1, and Day 2
 
@@ -53,8 +53,6 @@ Each field should have **one authoritative owner**. Terraform owns the cloud res
 - During teardown, account for finalizers, PVCs, and data outside the cluster.
 
 **Official:** [Argo CD](https://argo-cd.readthedocs.io/) · [Config Connector](https://docs.cloud.google.com/config-connector/docs/overview).
-
-
 
 ## Deep dive: bootstrapping a cluster without circular dependencies
 
@@ -102,10 +100,21 @@ A platform's GitOps model often has multiple **control planes**. Terraform manag
 
 Before Argo CD can install platform controllers, you need a Kubernetes cluster, Argo CD instances, and credentials. You cannot put all of Day 0 under Argo CD's control before Argo CD exists. One possible sequence:
 
-```text
-Day-0 Terraform → VPC/subnets/IAM → GKE cluster → bootstrap access
-Day-1 Bootstrap Helm/Kustomize → Argo CD + core policies + CRDs
-Day-2 Argo CD reconciles platform components and applications
+```mermaid
+flowchart TD
+  subgraph Day0["Day-0: Provisioning"]
+    T1["Terraform"] --> T2["VPC / subnets / IAM"]
+    T2 --> T3["GKE cluster"]
+    T3 --> T4["Bootstrap access"]
+  end
+  subgraph Day1["Day-1: Bootstrap"]
+    B1["Bootstrap Helm / Kustomize"] --> B2["Argo CD + core policies + CRDs"]
+  end
+  subgraph Day2["Day-2: Operations"]
+    R1["Argo CD reconciles platform components and applications"]
+  end
+  T4 --> B1
+  B2 --> R1
 ```
 
 Use Terraform or a controlled bootstrap script to install Argo CD initially. When handing off to GitOps, avoid letting Terraform continue to control Kubernetes resources that Argo CD also owns. If Terraform must keep managing the Helm release, document that ownership and do not let Argo CD manage the same release state.

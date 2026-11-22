@@ -1,0 +1,29 @@
+---
+title: "Bài tập Vận hành Nền tảng"
+sidebar_position: 23
+tags: [kubernetes, scheduling, storage, recovery, security, governance]
+---
+
+import {SchedulingCapacityExercise, RecoveryBudgetExercise, TenantQuotaExercise, PlatformOperationsQuiz} from '@site/src/components/GitOpsExercises';
+
+## Mô phỏng lập lịch và mở rộng ngang
+
+Lọc theo tài nguyên request chưa được cấp phát và so sánh điểm số của các node đủ điều kiện. Mô hình HPA sử dụng tỷ lệ cơ bản và giới hạn số replica. Mô hình giả định metric luôn sẵn sàng và bỏ qua cửa sổ ổn định (stabilization), độ dung sai (tolerance), trạng thái sẵn sàng và các chính sách scale.
+
+<SchedulingCapacityExercise />
+
+## Ước tính mốc thời gian khôi phục
+
+Cộng ba giai đoạn như thể chúng diễn ra tuần tự. So sánh tổng thời gian với RTO. Mô hình bỏ qua công việc song song, các lượt retry và độ trễ từ các thành phần phụ thuộc bên ngoài.
+
+<RecoveryBudgetExercise />
+
+## Tính toán hạn mức CPU cho tenant
+
+Mô hình này giả định mọi Pod đều có cùng tổng CPU request và không có workload nào khác dùng hạn mức. Bộ nhớ, số lượng đối tượng và các ngân sách khác có thể ràng buộc khả năng admission thực tế.
+
+<TenantQuotaExercise />
+
+## Kiểm tra kiến thức từ Bài 15 đến Bài 19
+
+<PlatformOperationsQuiz />

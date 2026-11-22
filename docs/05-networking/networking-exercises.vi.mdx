@@ -1,0 +1,70 @@
+---
+title: "Bài tập Mạng Kubernetes"
+sidebar_position: 23
+tags: [kubernetes, networking, troubleshooting]
+---
+
+import {NetworkingQuiz} from '@site/src/components/GitOpsExercises';
+
+## Chẩn đoán từ cùng một Pod nguồn
+
+Với mỗi tình huống, hãy chọn phép kiểm tra tiếp theo trước khi mở phần giải thích. Giả sử ứng dụng kỳ vọng cùng một HTTP host và path cho mọi lượt kiểm tra.
+
+<details>
+<summary>Tên miền trả về NXDOMAIN, còn ClusterIP trả về HTTP 200.</summary>
+
+Kiểm tra các DNS search domain của Pod nguồn và xác minh tên Service, namespace và cluster domain. Yêu cầu này đã kết nối thành công tới Service khi gọi trực tiếp bằng địa chỉ IP.
+
+</details>
+
+<details>
+<summary>Tên miền phân giải được, ClusterIP bị timeout, còn IP của Pod backend trả về HTTP 200.</summary>
+
+So sánh `port` và `targetPort` của Service với các cổng trên EndpointSlice và trạng thái endpoint. Kiểm tra cơ chế chuyển tiếp của Service và việc áp dụng NetworkPolicy. Một lần gọi thành công trực tiếp tới backend chỉ chứng minh được đường dẫn đó hoạt động.
+
+</details>
+
+<details>
+<summary>Yêu cầu HTTP nội bộ hoạt động bình thường, nhưng gateway công khai trả về 502.</summary>
+
+Kiểm tra các điều kiện parent của route, giao thức và cổng upstream được cấu hình, cũng như trạng thái health của load balancer. Xác định upstream được gateway chọn và xem log của nó để thu hẹp nguyên nhân lỗi.
+
+</details>
+
+## Kiểm tra hiểu biết về mạng Kubernetes
+
+<NetworkingQuiz />
+
+Tiếp tục với [hướng dẫn xử lý sự cố từ Layer 3 đến Layer 7](./lesson-12-kubernetes-networking.md#troubleshoot-the-502-with-controlled-comparisons).
+
+import {GkePodCapacityExercise, GkeNetworkingQuiz} from '@site/src/components/GitOpsExercises';
+
+## Tính toán dung lượng IP cho Pod trên GKE
+
+Bắt đầu với dải `/16` và 110 Pod trên mỗi node. So sánh kết quả với mức 64 Pod trên mỗi node. Mô hình giả định một dải phụ IPv4 đồng nhất cho Pod và dùng công thức cấp phát khối theo tài liệu. Dung lượng subnet chính, các Pod hệ thống, quota, node pool hỗn hợp và khoảng dự phòng khi nâng cấp đều ảnh hưởng tới dung lượng khả dụng thực tế.
+
+<GkePodCapacityExercise />
+
+## Kiểm tra hiểu biết về mạng GKE
+
+<GkeNetworkingQuiz />
+
+Tiếp tục với [phần chẩn đoán load balancer trên GKE](./lesson-13-gke-networking.md#diagnose-a-502-from-the-frontend-through-the-neg).
+
+import {IstioTrafficExercise, IstioLabChecklist, IstioQuiz} from '@site/src/components/GitOpsExercises';
+
+## Mô phỏng lưu lượng và retry trong Istio
+
+Thay đổi tỷ trọng canary mục tiêu và so sánh phần lưu lượng của hai route. Lưu lượng quan sát thực tế có thể lệch so với tỷ trọng cấu hình. Với cơ chế retry, hãy thay đổi số chặng (hop) và số lần thử để xem cận trên trong trường hợp mọi chặng đều retry tối đa. Thời hạn (deadline), hủy yêu cầu và lỗi thực tế sẽ ảnh hưởng đến kết quả quan sát được.
+
+<IstioTrafficExercise />
+
+## Theo dõi bài lab service mesh
+
+<IstioLabChecklist />
+
+## Kiểm tra hiểu biết về Istio
+
+<IstioQuiz />
+
+Tiếp tục với [hướng dẫn theo dõi yêu cầu từ Payment đến Order](./lesson-14-istio.md#follow-a-payment-request-through-the-mesh).

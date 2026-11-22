@@ -8,17 +8,24 @@ last_reviewed: 2026-11-22
 source_fidelity: editorial-reconstruction
 ---
 
-:::info Source and editorial scope
-This lesson was expanded using topics and discussion that can be verified against the conversation, but **it is not a complete verbatim transcript**. The added sections were written for the website and may require version-specific testing before use in production.
-:::
-
 ## Learning objectives
 
-Pod Security, RBAC, WIF, SBOM, SLSA, signatures, admission.
+- **Apply defense in depth for compromised workloads:** Model the blast radius of remote code execution inside a Pod and layer controls across CI, admission, identity, runtime, and networking.
+- **Enforce Pod Security Standards and runtime hardening:** Configure `Restricted` Pod Security Admission, non-root execution, `seccompProfile`, dropped capabilities, and read-only root filesystems safely.
+- **Prevent direct and indirect privilege escalation:** Audit Kubernetes RBAC, ServiceAccount token projection, Workload Identity Federation for GKE, and External Secrets Operator boundaries.
+- **Secure the software supply chain end to end:** Combine immutable image digests, SBOMs, build provenance, keyless Cosign signatures, and SLSA assurance with Binary Authorization or `ValidatingAdmissionPolicy` gates.
+- **Govern GitOps delivery and execute incident response:** Restrict deployment authority with `CODEOWNERS` and Argo CD AppProjects, and follow a forensic-first containment, rotation, and trusted-rebuild runbook.
 
 ## Threat model and defense in depth
 
 A compromised Pod can use the tokens, IAM permissions, Secrets, and network access available to its workload. Apply protection at multiple layers: CI, image provenance, admission, runtime, RBAC, IAM, and the network.
+
+```mermaid
+flowchart TD
+  L1["Supply Chain (SBOM / Cosign / SLSA)"] --> L2["Admission (Binary Authorization / ValidatingAdmissionPolicy / PSS)"]
+  L2 --> L3["API & Identity (RBAC / Workload Identity Federation)"]
+  L3 --> L4["Runtime & Network (NetworkPolicy / Seccomp / Non-Root)"]
+```
 
 ## Pod Security
 
@@ -53,8 +60,6 @@ A signature alone does not guarantee that an image is free of vulnerabilities. A
 Git write access can amount to deployment authority if Argo CD has broad permissions. Use `CODEOWNERS` and AppProjects to limit that authority, and do not let application repositories modify the platform's security boundaries.
 
 **Official:** [Pod Security Standards](https://kubernetes.io/docs/concepts/security/pod-security-standards/) · [SLSA](https://slsa.dev/) · [Sigstore](https://docs.sigstore.dev/).
-
-
 
 ## Threat model: assumed compromised workload
 
@@ -147,14 +152,14 @@ Signing an image does **not** prove that it is free of known vulnerabilities or 
 
 ### Policy chain before deployment
 
-```text
-Git PR + CODEOWNERS
-   → CI tests / dependency scan
-   → OCI build + SBOM + provenance + signature
-   → Artifact registry by digest
-   → GitOps reference updates
-   → Admission verification / Pod Security
-   → Runtime controls + detection
+```mermaid
+flowchart TD
+  A["Git PR + CODEOWNERS"] --> B["CI tests / dependency scan"]
+  B --> C["OCI build + SBOM + provenance + signature"]
+  C --> D["Artifact registry by digest"]
+  D --> E["GitOps reference updates"]
+  E --> F["Admission verification / Pod Security"]
+  F --> G["Runtime controls + detection"]
 ```
 
 On GKE, Binary Authorization can enforce image attestation rules. For Kubernetes-agnostic policy, Kyverno and other solutions provide image verification, depending on the version. `ValidatingAdmissionPolicy` can check fields with CEL, but it does not verify OCI signatures in a registry by default.

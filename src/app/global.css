@@ -12,10 +12,19 @@ html {
   scroll-behavior: smooth;
 }
 
-.prose > p,
-.prose > ul li,
-.prose > ol li,
-.prose blockquote p {
+article .prose p,
+article .prose li {
   text-align: justify;
   hyphens: auto;
+}
+
+article .prose table p,
+article .prose table li,
+article .prose pre p,
+article .prose .not-prose p,
+article .prose .not-prose li,
+article .prose [class*='exercise'] p,
+article .prose [class*='exercise'] li {
+  text-align: left;
+  hyphens: none;
 }

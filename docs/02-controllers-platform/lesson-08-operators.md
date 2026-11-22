@@ -8,16 +8,15 @@ last_reviewed: 2026-11-22
 source_fidelity: editorial-reconstruction
 ---
 
-:::info Source status
-The topic has been confirmed as part of the course. This lesson is an **editorial reconstruction**, not a verbatim transcript.
-:::
-
 # Lesson 08: Kubernetes Operator Internals & Controller Runtime
 
 ## Learning objectives
 
-Master **CRDs, reconciliation, controller-runtime, finalizers, and conditions**, understand controller and ownership boundaries, and apply these concepts in a test cluster lab.
-
+- **Design CRDs and custom resources as a product API:** Separate schema definition (`CustomResourceDefinition`) from desired-state instances (CRs), defining validation rules, immutability, versioning, and status subresources.
+- **Understand the controller-runtime event pipeline:** Trace how informers, local caches, workqueues, and rate limiters coalesce watch events and drive level-triggered, idempotent reconciliation loops.
+- **Implement safe cleanup with `ownerReferences` and finalizers:** Use Kubernetes garbage collection for in-cluster dependents and retry-safe finalizers for external cloud resources while avoiding stuck `Terminating` states.
+- **Report accurate progress with `status.conditions` and `observedGeneration`:** Communicate controller convergence, readiness, and errors transparently using optimistic locking and standard condition semantics.
+- **Build and test an operator end-to-end:** Scaffold a `WebApp` controller with Kubebuilder, reconcile child Deployments and Services against drift, and validate behavior across unit, `envtest`, and cluster tests.
 
 ## 1. What is an operator?
 

@@ -8,13 +8,13 @@ last_reviewed: 2026-11-22
 source_fidelity: editorial-reconstruction
 ---
 
-:::info Sources and editorial scope
-This lesson expands on the topic and verifiable content of the conversation, but it is **not a complete verbatim transcript**. Additional material was written for this website and may require version-specific testing before use in production.
-:::
-
 ## Learning objectives
 
-Prometheus, OpenTelemetry, RED/USE, SLIs, SLOs, and error budgets.
+- **Correlate metrics, logs, and distributed traces:** Use RED and USE frameworks alongside OpenTelemetry context propagation to investigate latency spikes and isolate bottlenecks across services.
+- **Instrument and query Prometheus metrics:** Scrape Pod endpoints without cardinality explosions and write PromQL queries for request rates, error ratios, and classic or native latency histograms.
+- **Operate OpenTelemetry Collector pipelines:** Configure OTLP receivers, memory limiters, batch processors, and exporters while managing sampling and backpressure in production.
+- **Design user-centric SLIs, SLOs, and error budgets:** Translate business availability targets into multi-window, multi-burn-rate Prometheus recording and alerting rules backed by actionable runbooks.
+- **Gate progressive releases with shared telemetry:** Scope Prometheus queries by revision inside Argo Rollouts `AnalysisTemplate` checks while maintaining separate service-wide SLO alerts.
 
 ## Metrics, logs, traces
 
@@ -25,6 +25,14 @@ Prometheus, OpenTelemetry, RED/USE, SLIs, SLOs, and error budgets.
 ## Prometheus
 
 Prometheus scrapes metrics over time. Each combination of metric name and labels is a time series. Avoid labels such as `user_id` or `request_id` because they have high cardinality.
+
+```mermaid
+flowchart LR
+  SRC["App /metrics & cAdvisor"] --> PROM["Prometheus Scrape & TSDB"]
+  PROM --> REC["Recording Rules (RED / SLI)"]
+  REC --> ALERT["Multi-Window Burn-Rate Alerts"]
+  REC --> CONS["Grafana / Argo Rollouts AnalysisRun"]
+```
 
 ```promql
 sum(rate(http_requests_total{service="payment"}[5m]))
@@ -54,8 +62,6 @@ If the availability SLO is 99.9%, the allowed failure fraction is 0.001. For one
 Instrument the application with the OpenTelemetry SDK. The Collector receives, processes, and exports signals to backends. Prometheus does not need a Collector to scrape metrics.
 
 **Official:** [Prometheus](https://prometheus.io/docs/introduction/overview/) · [OpenTelemetry](https://opentelemetry.io/docs/collector/architecture/) · [SRE Workbook](https://sre.google/workbook/alerting-on-slos/).
-
-
 
 ## Building an SLO from the user's perspective
 
@@ -131,12 +137,10 @@ This query assumes a classic histogram with the `_bucket` suffix, the `le` label
 
 Instrumentation with the OpenTelemetry SDK generates telemetry. The OpenTelemetry Collector ingests it through receivers, processes it through processors, and sends it through exporters. The Collector does not generate business metrics on its own if the application is not instrumented or no metrics source is available.
 
-```text
-Application SDK / Envoy spans
-       ↓ OTLP
-OpenTelemetry Collector
-       ↓ processors (batch, memory_limiter, attributes)
-Observability backend
+```mermaid
+flowchart TD
+  A["Application SDK / Envoy spans"] -->|"OTLP"| B["OpenTelemetry Collector"]
+  B -->|"processors (batch, memory_limiter, attributes)"| C["Observability backend"]
 ```
 
 In production, review cardinality, resource attributes, sampling decisions, trace propagation, and retention. Using `user_id` or `order_id` as Prometheus labels can cause a cardinality explosion. Sensitive data also creates privacy risks.

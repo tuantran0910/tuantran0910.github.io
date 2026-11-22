@@ -8,13 +8,13 @@ last_reviewed: 2026-11-22
 source_fidelity: editorial-reconstruction
 ---
 
-:::info Sources and editorial scope
-This lesson expands on the topic and verifiable content of the conversation, but it is **not a complete verbatim transcript**. Additional material was written for this website and may require version-specific testing before use in production.
-:::
-
 ## Learning objectives
 
-Envoy, istiod, xDS, mTLS, VirtualService, Ambient Mesh.
+- **Separate Istio control plane and data plane roles:** Trace how `istiod` translates Kubernetes and Istio CRDs into Envoy xDS (LDS, RDS, CDS, EDS, SDS) configuration without sitting on the request path.
+- **Control east-west traffic and resilience:** Pair `VirtualService` and `DestinationRule` to split canary traffic, configure connection pools and outlier detection, and bound retries to prevent retry amplification.
+- **Enforce mTLS workload identity and authorization:** Combine `STRICT` `PeerAuthentication` (SPIFFE identities) with `AuthorizationPolicy` rules to separate transport authentication from L4/L7 access control.
+- **Compare Sidecar and Ambient Mesh architectures:** Evaluate per-Pod Envoy sidecars against node-level `ztunnel` (HBONE L4 overlay) and Envoy waypoint proxies for L7 policies.
+- **Integrate Istio with Argo Rollouts and debug proxies:** Prevent GitOps drift on live canary weights and inspect Envoy state with `istioctl proxy-status`, `proxy-config`, and `analyze`.
 
 ## Istio control plane and data plane
 
@@ -96,8 +96,6 @@ istioctl analyze -A
 
 **Official:** [Istio Architecture](https://istio.io/latest/docs/ops/deployment/architecture/) · [Ambient Mesh](https://istio.io/latest/docs/ambient/overview/).
 
-
-
 ## Sidecar request path and xDS
 
 ```mermaid
@@ -149,16 +147,12 @@ If Service A and Service B each make up to three attempts, a single request can 
 
 ### Sidecar mode end-to-end
 
-```text
-Payment Application
-    ↓ outbound interception (CNI/iptables where configured)
-Payment Envoy outbound listener
-    ↓ RDS/CDS/EDS route + endpoint selection
-mTLS connection (workload identities)
-    ↓
-Order Envoy inbound listener
-    ↓ authentication + AuthorizationPolicy
-Order Application
+```mermaid
+flowchart TD
+  PA["Payment Application"] -->|"Outbound interception (CNI/iptables)"| PE["Payment Envoy outbound listener"]
+  PE -->|"RDS/CDS/EDS route & endpoint selection"| MTLS["mTLS connection (workload identities)"]
+  MTLS --> OE["Order Envoy inbound listener"]
+  OE -->|"Authentication & AuthorizationPolicy"| OA["Order Application"]
 ```
 
 `istiod` is the control plane: it discovers Services and EndpointSlices, watches Istio CRDs, and provides xDS configuration and certificates. It **does not** handle individual HTTP requests in the data plane. Envoy can continue using its existing configuration if istiod is temporarily unavailable, but route and policy updates and certificate rotation may be affected.

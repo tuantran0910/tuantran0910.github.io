@@ -8,13 +8,13 @@ last_reviewed: 2026-11-22
 source_fidelity: editorial-reconstruction
 ---
 
-:::info Source and editorial scope
-This lesson was expanded using topics and discussion that can be verified against the conversation, but **it is not a complete verbatim transcript**. The added sections were written for the website and may require version-specific testing before use in production.
-:::
-
 ## Learning objectives
 
-RBAC, quotas, NetworkPolicy, AppProject, self-service tenants.
+- **Choose between soft and hard multi-tenancy models:** Evaluate when shared-cluster namespaces with layered controls suffice versus when trust, compliance, or kernel isolation requires separate clusters or projects.
+- **Enforce namespace compute and admission boundaries:** Combine `ResourceQuota`, `LimitRange`, `ValidatingAdmissionPolicy`, and Pod Security Admission to bound aggregate and per-container usage without breaking HPA or rollouts.
+- **Isolate tenant traffic with explicit NetworkPolicies:** Apply default-deny ingress and egress baselines, construct two-sided allow rules with combined namespace and Pod selectors, and protect platform-owned labels.
+- **Govern GitOps delivery and multi-cluster tenancy:** Scope Argo CD `AppProject` and `ApplicationSet` permissions separately from Kubernetes RBAC, and align GKE Fleet team scopes with clear field ownership and cost allocation.
+- **Design a safe self-service Tenant API:** Reconcile tenant namespaces, RBAC, quotas, policies, and IAM idempotently while protecting stateful workloads and PVCs from accidental offboarding deletion.
 
 ## Soft and hard multi-tenancy
 
@@ -66,8 +66,6 @@ Define a `Tenant` API (a custom CRD or declarative configuration) to provision n
 If you need an independent control plane, a compliance boundary, kernel isolation, or a different Kubernetes version, evaluate cluster-based tenancy instead of placing every tenant in a namespace.
 
 **Official:** [Kubernetes Multi-Tenancy](https://kubernetes.io/docs/concepts/security/multi-tenancy/) · [Argo CD Projects](https://argo-cd.readthedocs.io/en/stable/user-guide/projects/).
-
-
 
 ## Model the tenant boundary explicitly
 

@@ -8,13 +8,13 @@ last_reviewed: 2026-11-22
 source_fidelity: editorial-reconstruction
 ---
 
-:::info Sources and editorial scope
-This lesson expands on the topic and verifiable content of the conversation, but it is **not a complete verbatim transcript**. Additional material was written for this website and may require version-specific testing before use in production.
-:::
-
 ## Learning objectives
 
-CNI, Service, EndpointSlice, kube-proxy/eBPF, DNS, NetworkPolicy.
+- **Trace Pod-to-Service packet flows:** Follow traffic across Pod network namespaces, CNI routing, ClusterIP virtual addresses, and EndpointSlice readiness, serving, and terminating states.
+- **Compare Service dataplane implementations:** Contrast traditional `kube-proxy` iptables/IPVS forwarding with eBPF-based dataplanes such as GKE Dataplane V2 (`anetd`).
+- **Resolve cluster DNS and external routing:** Distinguish normal ClusterIP vs. headless Service DNS behavior and separate platform `Gateway` listeners from application `HTTPRoute` rules.
+- **Enforce least-privilege NetworkPolicies:** Combine additive ingress and egress rules, default-deny baselines, and explicit DNS allowances without breaking workload connectivity.
+- **Diagnose connectivity failures systematically:** Isolate DNS `NXDOMAIN`, `Connection refused`, timeouts, and HTTP 502/503 errors by testing FQDN, ClusterIP, and backend Pod IPs independently.
 
 ## Pod IP, Service, and EndpointSlice
 
@@ -47,17 +47,15 @@ kubectl get networkpolicy -n payments
 
 **Official:** [Kubernetes Services](https://kubernetes.io/docs/concepts/services-networking/service/) · [NetworkPolicy](https://kubernetes.io/docs/concepts/services-networking/network-policies/).
 
-
-
 ## End-to-end packet path: Pod → ClusterIP Service → Pod
 
-```text
-Payment container
-  → Pod network namespace
-  → DNS resolves order.orders.svc.cluster.local
-  → ClusterIP virtual service address
-  → Service dataplane selects EndpointSlice backend
-  → CNI / node routing delivers to destination Pod
+```mermaid
+flowchart LR
+  A["Payment container"] --> B["Pod network namespace"]
+  B --> C["DNS resolves order.orders.svc.cluster.local"]
+  C --> D["ClusterIP virtual address"]
+  D --> E["Service dataplane (EndpointSlice)"]
+  E --> F["CNI / node routing to destination Pod"]
 ```
 
 A Service ClusterIP is not a process listening in a Pod. Depending on the data plane, kube-proxy in iptables/IPVS mode or an eBPF Service implementation handles virtual IP and port mapping. GKE Dataplane V2 differs from traditional kube-proxy implementations, so check the mode before debugging.
@@ -90,16 +88,12 @@ The Kubernetes networking model gives Pods IP addresses they can use to communic
 
 ### Pod-to-Service request path
 
-```text
-payment Pod: 10.2.1.5
-    ↓ DNS lookup order.orders.svc.cluster.local
-CoreDNS returns ClusterIP
-    ↓ TCP SYN → ClusterIP:8080
-kube-proxy iptables/IPVS OR eBPF dataplane (implementation dependent)
-    ↓ backend selection from EndpointSlices
-order Pod: 10.2.3.8:8080
-    ↓ response (with reverse NAT where applicable)
-payment Pod
+```mermaid
+flowchart TD
+  P1["payment Pod (10.2.1.5)"] -->|"DNS lookup: order.orders.svc.cluster.local"| DNS["CoreDNS returns ClusterIP"]
+  DNS -->|"TCP SYN to ClusterIP:8080"| DP["kube-proxy (iptables/IPVS) or eBPF dataplane"]
+  DP -->|"Backend selection from EndpointSlices"| P2["order Pod (10.2.3.8:8080)"]
+  P2 -->|"Response (with reverse NAT where applicable)"| P1
 ```
 
 `kube-proxy` is not a userspace HTTP proxy that handles each request. In iptables or IPVS mode, its main role is to configure the kernel data plane. GKE Dataplane V2 uses eBPF for networking functions; do not assume every GKE cluster uses the kube-proxy iptables path.

@@ -1,0 +1,11 @@
+{
+  "title": "Platform Controllers & Operators",
+  "pages": [
+    "lesson-04-controller-foundations",
+    "lesson-05-platform-integration",
+    "lesson-06-workload-identity-secrets",
+    "lesson-07-admission",
+    "lesson-08-operators",
+    "fleet-config-sync"
+  ]
+}

@@ -8,20 +8,27 @@ last_reviewed: 2026-11-22
 source_fidelity: editorial-reconstruction
 ---
 
-:::info Source status
-The title and topic were cross-checked against the conversation history. The content below is a **detailed editorial reconstruction**, not a verbatim transcript of the entire original response.
-:::
-
 # Lesson 02: Kubernetes Server-Side Apply, Field Ownership & Conflict Resolution
 
 ## Learning objectives
 
-Develop a solid understanding of **Server-Side Apply, managedFields, field managers, three-way merge, and conflicts**. Learn where controller responsibilities and ownership boundaries lie, and apply that knowledge in a lab on a test cluster.
-
+- **Client-Side Apply vs. Server-Side Apply:** Contrast client-side three-way merge using `last-applied-configuration` with server-side structured merge and declarative field management.
+- **Field ownership and `managedFields`:** Inspect `manager`, `operation` (`Apply` vs. `Update`), `subresource`, and `fieldsV1` entries to verify which actor owns each field without confusing ownership with RBAC.
+- **Conflict detection and resolution:** Reproduce HTTP `409 Conflict` on overlapping fields, understand shared ownership on identical values, and evaluate the governance risks of `--force-conflicts`.
+- **Coordinated multi-controller ownership:** Divide responsibilities across GitOps, HPA, and workload controllers, and execute safe replica-count handoffs or targeted `ignoreDifferences` with `RespectIgnoreDifferences=true`.
+- **Omission, `null`, and deletion semantics:** Predict when omitting a previously owned field removes it, resets it to an API default, or preserves a co-owner's value during SSA and CSA transitions.
 
 ## 1. What problem does Server-Side Apply solve?
 
 Multiple actors can modify a Kubernetes object: Argo CD manages the image, an HPA manages replicas, an admission webhook adds labels, and an operator manages status. If every actor submits a complete copy of the object, one actor can overwrite another's changes. **Server-Side Apply (SSA)** uses declarative field management in the Kubernetes API server to calculate changes and detect ownership conflicts.
+
+```mermaid
+flowchart LR
+  GitOps["GitOps manager (image, labels, requests)"] -->|"SSA Apply"| API["Kubernetes API Server (managedFields)"]
+  HPA["HPA controller (spec.replicas via /scale)"] -->|"Update / Apply"| API
+  API -->|"Disjoint fields"| Merged["Merged Deployment object"]
+  API -->|"Overlapping field with different value"| Conflict["409 Conflict (unless --force-conflicts)"]
+```
 
 ### Declarative intent at two levels
 

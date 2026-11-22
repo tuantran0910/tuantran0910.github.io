@@ -8,13 +8,13 @@ last_reviewed: 2026-11-22
 source_fidelity: editorial-reconstruction
 ---
 
-:::info Sources and editorial scope
-This lesson builds on the topic and verifiable content from the conversation, but **it is not a complete verbatim transcript**. Supplemental material was written for the website and may require version-specific testing before use in production.
-:::
-
 ## Learning objectives
 
-Node/zone failures, regional GKE, RPO/RTO, backup and failover.
+- **Separate High Availability from Disaster Recovery by failure domain:** Design distinct resilience strategies for Pod, Node, zone, control-plane, and regional outages rather than relying on self-healing alone.
+- **Prevent split-brain during node partitions:** Understand Node Leases, `NoExecute` taints, and eviction toleration delays, and enforce fencing before replacing single-writer stateful workloads.
+- **Architect Regional GKE and database resilience accurately:** Account for spare serving capacity across surviving zones, storage failover limits of Regional Persistent Disk, and data-plane behavior during API server outages.
+- **Combine layered recovery paths with explicit ownership:** Coordinate Terraform, GitOps, Backup for GKE, and database-native backups with WAL archiving instead of relying on managed GKE etcd snapshots.
+- **Validate RPO and RTO budgets through Game Days:** Execute structured detection, containment, recovery, validation, and failback runbooks while measuring actual elapsed recovery time and data loss.
 
 ## High Availability vs. Disaster Recovery
 
@@ -27,6 +27,35 @@ When the kubelet stops sending heartbeats, the Node may become `Unknown` or `Not
 ## Regional GKE Does Not Provide Database HA by Itself
 
 A regional control plane is replicated across zones, but workloads still need topology spread and sufficient capacity in the surviving zones. Zonal disks are constrained to their zone. Regional Persistent Disk can replicate data across two zones, but **it does not provide database failover or backups on its own**.
+
+```mermaid
+flowchart LR
+  DNS["Traffic / Global DNS & LB"] --> Primary
+  subgraph Primary["Primary Region (Regional GKE)"]
+    direction TB
+    CP["Regional Control Plane"]
+    ZA["Zone A (Nodes + Pods)"]
+    ZB["Zone B (Nodes + Pods)"]
+    ZC["Zone C (Nodes + Pods)"]
+    DB["Replicated DB (Primary + Sync Replica)"]
+    CP --- ZA
+    CP --- ZB
+    CP --- ZC
+    ZA --> DB
+    ZB --> DB
+    ZC --> DB
+  end
+  DB --> BKP["Independent Backups & WAL Archive"]
+  BKP -.->|DR Restore and PITR| Standby
+  DB -.->|Cross-Region Replication| Standby
+  DNS -.->|Failover Cutover| Standby
+  subgraph Standby["Standby DR Region"]
+    direction TB
+    DRGKE["Standby GKE + GitOps"]
+    DRDB["Promoted / Restored DB"]
+    DRGKE --> DRDB
+  end
+```
 
 ## RPO / RTO
 
@@ -50,8 +79,6 @@ Do not design DR around downloading and restoring snapshots of etcd managed by G
 7. Conduct regular Game Days and restore tests.
 
 **Official:** [GKE Regional Clusters](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/regional-clusters) · [Backup for GKE](https://docs.cloud.google.com/kubernetes-engine/docs/add-on/backup-for-gke/concepts/backup-for-gke).
-
-
 
 ## Node failure vs Network partition
 
@@ -91,10 +118,14 @@ If the RTO is 30 minutes but restoring the database takes 25 minutes and provisi
 
 The kubelet sends heartbeats and renews Node Leases. If communication stops, the Node controller can mark the Node `Unknown` or `NotReady` and add the corresponding `NoExecute` taints. The default Pod tolerations for `not-ready` and `unreachable` typically allow about 300 seconds before eviction under the applicable policy. Actual recovery time also includes detection, deletion, scheduling, provisioning, and startup. Do not treat 300 seconds as a guaranteed RTO.
 
-```text
-Node partitioned → heartbeats lost → Node condition changes
-    → taints / toleration period → Pod deletion/eviction
-    → workload controller creates replacement → scheduler/kubelet
+```mermaid
+flowchart TD
+  A["Node partitioned"] --> B["Heartbeats lost"]
+  B --> C["Node condition changes (Unknown / NotReady)"]
+  C --> D["NoExecute taints and toleration period"]
+  D --> E["Pod deletion / eviction"]
+  E --> F["Workload controller creates replacement"]
+  F --> G["Scheduler and kubelet place and start Pod"]
 ```
 
 **Split-brain:** The old Node may still be running the database even if it cannot reach the API server. Do not force-delete the primary StatefulSet Pod before fencing the old instance. Depending on the architecture, fencing can involve ensuring that the VM is powered off, detaching storage, or revoking a database role.

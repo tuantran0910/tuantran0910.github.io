@@ -1,0 +1,19 @@
+---
+title: "Bài tập Observability và SRE"
+sidebar_position: 23
+tags: [observability, sre, prometheus]
+---
+
+import {ErrorBudgetExercise, ObservabilityQuiz} from '@site/src/components/GitOpsExercises';
+
+## Tính toán ngân sách lỗi theo request
+
+Bắt đầu với SLO 99,9%, một triệu request hợp lệ và tỷ lệ lỗi quan sát được là 0,05%. Thay đổi SLO hoặc tỷ lệ lỗi để xem điều gì xảy ra khi vượt quá ngân sách. Mô hình sử dụng một tập request duy nhất và một tỷ lệ lỗi tổng hợp. Hệ thống cảnh báo production thường tính riêng tốc độ tiêu hao (burn rate) trên các cặp cửa sổ thời gian.
+
+<ErrorBudgetExercise />
+
+## Kiểm tra hiểu biết về Observability và SRE
+
+<ObservabilityQuiz />
+
+Tiếp tục với [bài lab observability cho dịch vụ Payment](./lesson-11-observability.md#lab-from-instrumentation-to-release-verification).

@@ -8,16 +8,15 @@ last_reviewed: 2026-11-22
 source_fidelity: editorial-reconstruction
 ---
 
-:::info Source status
-The content was **reconstructed from the sequence of topics and the source material that could still be retrieved**. The exact original title and full text have not been verified, so this is not presented as a verbatim quotation.
-:::
-
 # Lesson 05: Config Connector, Config Sync & Cloud Resource Reconciliation
 
 ## Learning objectives
 
-Master **Google Cloud infrastructure CRDs, Config Sync, and controller ownership**, understand controller responsibilities and ownership boundaries, and apply these concepts in a lab on a test cluster.
-
+- **Platform control-plane ownership:** Define clear system-of-record boundaries across Terraform, Config Connector (CNRM), Config Sync, and Argo CD so separate reconcilers never fight over the same resource or field.
+- **Cloud resource reconciliation lifecycle:** Trace a `StorageBucket` CR from Kubernetes API admission and etcd persistence through the CNRM controller to Google Cloud Storage API convergence.
+- **Periodic drift repair and status verification:** Explain how delayed requeues with jitter detect out-of-band cloud console edits, and read `metadata.generation` alongside `status.observedGeneration` and `Ready` conditions accurately.
+- **Deletion policies and safe troubleshooting:** Diagnose IAM, quota, immutable-field, and write-only configuration errors, and verify `deletion-policy: abandon` before removing cloud resource CRs.
+- **Circular-dependency-free bootstrap:** Sequence Terraform infrastructure provisioning, controller installation, workload identity binding, platform policies, and application delivery without self-referential dependencies.
 
 ## 1. The platform's distinct control planes
 
@@ -66,16 +65,12 @@ Check this example against your Config Connector version and schema and your act
 
 ## 3. Reconciliation and external consistency
 
-```text
-Kubernetes StorageBucket spec
-  ↓
-CNRM controller
-  ↓
-Google Cloud Storage API
-  ↓
-External bucket state
-  ↓
-CR status and conditions
+```mermaid
+flowchart TD
+  Spec["Kubernetes StorageBucket spec"] --> CNRM["CNRM controller"]
+  CNRM --> GCS["Google Cloud Storage API"]
+  GCS --> Bucket["External bucket state"]
+  Bucket --> Status["CR status and conditions"]
 ```
 
 If the cloud API quota is exhausted or IAM permissions are missing, Kubernetes can still successfully store the object while the controller repeatedly reports reconciliation errors. Distinguish **API acceptance** from **external resource readiness**.
@@ -202,12 +197,13 @@ Suppose Terraform manages the Cloud Storage bucket `payment-audit` while Config 
 
 Identify the **system of record** for each resource, not just for each repository:
 
-```text
-Cloud VPC / Shared VPC / IAM baseline     → Terraform owner
-Argo CD Application, workloads            → Argo CD owner
-Kubernetes platform policies              → Config Sync or Argo CD; choose one
-CNRM-managed StorageBucket resource       → Config Connector owner
-Application-produced status, endpoints    → Kubernetes controllers owner
+```mermaid
+flowchart LR
+  VPC["Cloud VPC / Shared VPC / IAM baseline"] --> TF["Terraform owner"]
+  Apps["Argo CD Application and workloads"] --> Argo["Argo CD owner"]
+  Policies["Kubernetes platform policies"] --> PolicyOwner["Config Sync or Argo CD (choose one)"]
+  Bucket["CNRM-managed StorageBucket resource"] --> CNRM["Config Connector owner"]
+  Status["Application-produced status and endpoints"] --> K8sCtrl["Kubernetes controllers owner"]
 ```
 
 ### How Config Connector works: desired vs. actual state

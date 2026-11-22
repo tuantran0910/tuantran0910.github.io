@@ -8,16 +8,15 @@ last_reviewed: 2026-11-22
 source_fidelity: editorial-reconstruction
 ---
 
-:::info Source status
-The title and topic were cross-checked against information from the conversation history. The content below is an **in-depth editorial reconstruction**, not a verbatim transcript of the complete earlier response.
-:::
-
 # Lesson 04: Argo CD ApplicationSet & Multi-Cluster GitOps
 
 ## Learning objectives
 
-Master **ApplicationSet generators, templating, multi-cluster deployment, and bootstrap**, understand controller responsibilities and ownership boundaries, and apply these concepts in a lab on a test cluster.
-
+- **Two-loop reconciliation architecture:** Separate the ApplicationSet controller's management of `Application` CRs from the Application controller's reconciliation of workload manifests in destination clusters.
+- **Generator selection and templating:** Configure List, Git directory/file, Cluster, Matrix, and Merge generators with Go templates to automate multi-environment and multi-cluster onboarding.
+- **Multi-cluster placement and Helm parameterization:** Use cluster registration Secret labels to select target clusters and environment-specific Helm values files while understanding how ApplicationSet complements GKE Fleet.
+- **Scaling risks and security boundaries:** Control Cartesian-product blast radius in Matrix generators and enforce least privilege through `AppProject` allowlists, Kubernetes RBAC, and repository protections.
+- **Lifecycle, deletion, and retention policies:** Trace deletion paths across `ownerReferences`, Argo CD finalizers, `applicationsSync`, `preserveResourcesOnDeletion`, and `ignoreApplicationDifferences` to prevent accidental workload removal.
 
 ## 1. What does ApplicationSet add to Argo CD?
 
@@ -431,9 +430,16 @@ Fleet registration does not enroll a cluster in Argo CD. A platform can use Flee
 
 ApplicationSet generates **Application CRs** from templates and generator data; the Application controller then reconciles each Application. ApplicationSet does not replace the Argo CD application-controller. Keep the two loops separate:
 
-```text
-Generator state → ApplicationSet reconciliation → Generated Applications
-Generated Application → Argo CD Application reconciliation → Kubernetes resources
+```mermaid
+flowchart LR
+  subgraph Loop1["ApplicationSet loop"]
+    Gen["Generator state"] --> AppSet["ApplicationSet reconciliation"]
+    AppSet --> GenApps["Generated Applications"]
+  end
+  subgraph Loop2["Application loop"]
+    GenApps --> AppCtrl["Argo CD Application reconciliation"]
+    AppCtrl --> K8sRes["Kubernetes resources"]
+  end
 ```
 
 ### Choosing the right generator

@@ -8,16 +8,15 @@ last_reviewed: 2026-11-22
 source_fidelity: editorial-reconstruction
 ---
 
-:::info Source status
-The title and topic were cross-checked against the conversation history. The content below is a **detailed editorial reconstruction**, not a verbatim transcript of the entire original response.
-:::
-
 # Lesson 03: Structured Merge Diff, OpenAPI Schema & Field Ownership
 
 ## Learning objectives
 
-Develop a solid understanding of **Structured Merge Diff, Kubernetes schemas, list semantics, and field ownership**. Learn where controller responsibilities and ownership boundaries lie, and apply that knowledge in a lab on a test cluster.
-
+- **Structured Merge Diff (SMD) fundamentals:** Explain how Kubernetes uses typed structural schemas rather than raw JSON/YAML diffs to compute field sets and enforce SSA ownership.
+- **List and map topologies:** Differentiate `atomic`, `set`, and keyed `map` lists (`x-kubernetes-list-type`, `x-kubernetes-list-map-keys`) alongside `atomic` and `granular` objects to design conflict-free CRDs.
+- **Schema evolution and topology migrations:** Assess the ownership and validation risks of changing list or map topologies on live production CRDs in either direction.
+- **Defaults, nullability, and Server-Side Diff:** Distinguish Kubernetes SMD from Argo CD's modern Server-Side Diff (SSA dry-run) and configure `IncludeMutationWebhook=true` to eliminate false `OutOfSync` diffs.
+- **Hands-on CRD ownership verification:** Build and test a custom resource with both `map` and `atomic` list fields to inspect `managedFields` paths and verify omission and conflict behavior.
 
 ## 1. Why is merging YAML different from merging ordinary JSON?
 

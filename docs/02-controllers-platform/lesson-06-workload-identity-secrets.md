@@ -8,16 +8,15 @@ last_reviewed: 2026-11-22
 source_fidelity: editorial-reconstruction
 ---
 
-:::info Source status
-The content was **reconstructed from the sequence of topics and the source material that could still be retrieved**. The exact original title and full text have not been verified, so this is not presented as a verbatim quotation.
-:::
-
 # Lesson 06: GKE Workload Identity Federation & External Secrets
 
 ## Learning objectives
 
-Master **Workload Identity Federation, IAM, External Secrets Operator (ESO), and Secret Manager**, understand controller responsibilities and ownership boundaries, and apply these concepts in a lab on a test cluster.
-
+- **Separate configuration from sensitive credentials in Git:** Compare raw Kubernetes `Secret` manifests, SOPS, Sealed Secrets, External Secrets Operator (ESO), and direct CSI mounts to keep plaintext secrets out of version control.
+- **Distinguish workload identity planes:** Differentiate Kubernetes ServiceAccounts (KSA), Google Cloud IAM principals via GKE Workload Identity Federation, and Istio SPIFFE identities so you never confuse RBAC with cloud IAM.
+- **Configure ESO with GKE Workload Identity:** Bind a namespaced `ServiceAccount` directly to a Google Secret Manager IAM policy and reconcile secrets declaratively through `SecretStore` and `ExternalSecret` resources.
+- **Manage secret rotation and consumption lifecycles:** Trace credential updates from provider versions through ESO reconciliation into running Pods, accounting for `env`, mounted volumes, `subPath`, and graceful rollouts.
+- **Enforce least-privilege boundaries and troubleshoot by layer:** Isolate platform-owned stores and Argo CD `AppProject` scopes from team workloads, and debug IAM, RBAC, and sync failures without exposing secret values.
 
 ## Choose what belongs in Git
 
@@ -381,16 +380,12 @@ These identities can be associated with the same Kubernetes ServiceAccount, but 
 
 ### GKE Workload Identity: conceptual flow
 
-```text
-Pod KSA: payments/payment-app
-   ↓
-GKE metadata server
-   ↓
-Federated identity / token exchange
-   ↓
-Google Cloud IAM
-   ↓
-Secret Manager API
+```mermaid
+flowchart TD
+  A["Pod KSA: payments/payment-app"] --> B["GKE metadata server"]
+  B --> C["Federated identity / token exchange"]
+  C --> D["Google Cloud IAM"]
+  D --> E["Secret Manager API"]
 ```
 
 If you grant access directly to an IAM principal, the workload identifier takes this general form:
