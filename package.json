@@ -1,0 +1,33 @@
+{
+  "name": "cloud-native-engineering-handbook",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "prestart": "node scripts/build-search-index.mjs",
+    "start": "docusaurus start",
+    "prebuild": "node scripts/build-search-index.mjs",
+    "build": "docusaurus build",
+    "serve": "docusaurus serve",
+    "clear": "docusaurus clear",
+    "pretypecheck": "node scripts/build-search-index.mjs",
+    "typecheck": "tsc --noEmit",
+    "content:check": "python3 scripts/check_lessons.py"
+  },
+  "dependencies": {
+    "@docusaurus/core": "3.10.2",
+    "@docusaurus/preset-classic": "3.10.2",
+    "@docusaurus/theme-mermaid": "3.10.2",
+    "@mdx-js/react": "^3.1.0",
+    "@mermaid-js/layout-elk": "0.1.9",
+    "clsx": "^2.1.1",
+    "mermaid": "^11.6.0",
+    "prism-react-renderer": "^2.4.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@docusaurus/module-type-aliases": "3.10.2",
+    "@docusaurus/tsconfig": "3.10.2",
+    "typescript": "~5.8.3"
+  }
+}

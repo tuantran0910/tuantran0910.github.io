@@ -1,0 +1,198 @@
+{
+  "review_date": "2026-11-22",
+  "lessons": [
+    {
+      "lesson": 1,
+      "title": "Lesson 01 — Argo CD Internal Architecture & Reconciliation Mechanism",
+      "file": "docs/01-foundations/lesson-01-foundations.md",
+      "words": 1888,
+      "yaml_examples": 2,
+      "code_examples": 6,
+      "references": 8,
+      "source_fidelity": "editorial-reconstruction"
+    },
+    {
+      "lesson": 2,
+      "title": "Lesson 02 — Kubernetes Server-Side Apply, Field Ownership & Conflict Resolution",
+      "file": "docs/01-foundations/lesson-02-core-resources.md",
+      "words": 1436,
+      "yaml_examples": 2,
+      "code_examples": 9,
+      "references": 5,
+      "source_fidelity": "editorial-reconstruction"
+    },
+    {
+      "lesson": 3,
+      "title": "Lesson 03 — Structured Merge Diff, OpenAPI Schema & Field Ownership",
+      "file": "docs/01-foundations/lesson-03-cluster-architecture.md",
+      "words": 1283,
+      "yaml_examples": 2,
+      "code_examples": 5,
+      "references": 7,
+      "source_fidelity": "editorial-reconstruction"
+    },
+    {
+      "lesson": 4,
+      "title": "Lesson 04 — Argo CD ApplicationSet & Multi-Cluster GitOps",
+      "file": "docs/02-controllers-platform/lesson-04-controller-foundations.md",
+      "words": 1260,
+      "yaml_examples": 2,
+      "code_examples": 5,
+      "references": 10,
+      "source_fidelity": "editorial-reconstruction"
+    },
+    {
+      "lesson": 5,
+      "title": "Lesson 05 — Config Connector, Config Sync & Cloud Resource Reconciliation",
+      "file": "docs/02-controllers-platform/lesson-05-platform-integration.md",
+      "words": 1344,
+      "yaml_examples": 1,
+      "code_examples": 6,
+      "references": 6,
+      "source_fidelity": "editorial-reconstruction"
+    },
+    {
+      "lesson": 6,
+      "title": "Lesson 06 — GKE Workload Identity Federation & External Secrets",
+      "file": "docs/02-controllers-platform/lesson-06-workload-identity-secrets.md",
+      "words": 1222,
+      "yaml_examples": 3,
+      "code_examples": 7,
+      "references": 5,
+      "source_fidelity": "editorial-reconstruction"
+    },
+    {
+      "lesson": 7,
+      "title": "Lesson 07 — Kubernetes Admission Controllers & Policy",
+      "file": "docs/02-controllers-platform/lesson-07-admission.md",
+      "words": 1159,
+      "yaml_examples": 2,
+      "code_examples": 4,
+      "references": 5,
+      "source_fidelity": "editorial-reconstruction"
+    },
+    {
+      "lesson": 8,
+      "title": "Lesson 08 — Kubernetes Operator Internals & Controller Runtime",
+      "file": "docs/02-controllers-platform/lesson-08-operators.md",
+      "words": 1207,
+      "yaml_examples": 5,
+      "code_examples": 8,
+      "references": 6,
+      "source_fidelity": "editorial-reconstruction"
+    },
+    {
+      "lesson": 9,
+      "title": "Lesson 09 — Infrastructure GitOps & Platform Bootstrap",
+      "file": "docs/03-gitops-delivery/lesson-09-gitops-bootstrap.md",
+      "words": 1291,
+      "yaml_examples": 0,
+      "code_examples": 4,
+      "references": 5,
+      "source_fidelity": "editorial-reconstruction"
+    },
+    {
+      "lesson": 10,
+      "title": "Lesson 10 — Production Reliability & Progressive Delivery",
+      "file": "docs/03-gitops-delivery/lesson-10-progressive-delivery.md",
+      "words": 1245,
+      "yaml_examples": 6,
+      "code_examples": 9,
+      "references": 5,
+      "source_fidelity": "editorial-reconstruction"
+    },
+    {
+      "lesson": 11,
+      "title": "Lesson 11 — Kubernetes Observability & SRE Fundamentals",
+      "file": "docs/04-observability/lesson-11-observability.md",
+      "words": 1125,
+      "yaml_examples": 0,
+      "code_examples": 6,
+      "references": 6,
+      "source_fidelity": "editorial-reconstruction"
+    },
+    {
+      "lesson": 12,
+      "title": "Lesson 12 — Kubernetes Networking Internals",
+      "file": "docs/05-networking/lesson-12-kubernetes-networking.md",
+      "words": 1022,
+      "yaml_examples": 1,
+      "code_examples": 7,
+      "references": 5,
+      "source_fidelity": "editorial-reconstruction"
+    },
+    {
+      "lesson": 13,
+      "title": "Lesson 13 — GKE Networking & Cloud Load Balancing",
+      "file": "docs/05-networking/lesson-13-gke-networking.md",
+      "words": 1060,
+      "yaml_examples": 1,
+      "code_examples": 4,
+      "references": 5,
+      "source_fidelity": "editorial-reconstruction"
+    },
+    {
+      "lesson": 14,
+      "title": "Lesson 14 — Service Mesh & Istio Internals",
+      "file": "docs/05-networking/lesson-14-istio.md",
+      "words": 1203,
+      "yaml_examples": 4,
+      "code_examples": 9,
+      "references": 5,
+      "source_fidelity": "editorial-reconstruction"
+    },
+    {
+      "lesson": 15,
+      "title": "Lesson 15 — Kubernetes Scheduling & Autoscaling",
+      "file": "docs/06-compute-storage/lesson-15-scheduling.md",
+      "words": 1428,
+      "yaml_examples": 5,
+      "code_examples": 10,
+      "references": 6,
+      "source_fidelity": "editorial-reconstruction"
+    },
+    {
+      "lesson": 16,
+      "title": "Lesson 16 — Kubernetes Storage & Stateful Workloads",
+      "file": "docs/06-compute-storage/lesson-16-storage.md",
+      "words": 1375,
+      "yaml_examples": 5,
+      "code_examples": 9,
+      "references": 6,
+      "source_fidelity": "editorial-reconstruction"
+    },
+    {
+      "lesson": 17,
+      "title": "Lesson 17 — High Availability & Disaster Recovery",
+      "file": "docs/07-reliability/lesson-17-disaster-recovery.md",
+      "words": 1343,
+      "yaml_examples": 0,
+      "code_examples": 3,
+      "references": 5,
+      "source_fidelity": "editorial-reconstruction"
+    },
+    {
+      "lesson": 18,
+      "title": "Lesson 18 — Kubernetes Security & Supply Chain",
+      "file": "docs/08-security-governance/lesson-18-security.md",
+      "words": 1244,
+      "yaml_examples": 3,
+      "code_examples": 4,
+      "references": 7,
+      "source_fidelity": "editorial-reconstruction"
+    },
+    {
+      "lesson": 19,
+      "title": "Lesson 19 — Multi-Tenancy & Platform Governance",
+      "file": "docs/08-security-governance/lesson-19-multi-tenancy.md",
+      "words": 1425,
+      "yaml_examples": 5,
+      "code_examples": 6,
+      "references": 6,
+      "source_fidelity": "editorial-reconstruction"
+    }
+  ],
+  "errors": [],
+  "original_transcript_full_available": false,
+  "full_docs_build_verified": false
+}

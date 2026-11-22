@@ -1,0 +1,173 @@
+{
+  "1": {
+    "file": "docs/01-foundations/lesson-01-foundations.md",
+    "status": "expanded-reconstructed-needs-full-source-comparison",
+    "source": "conversation history or earlier generated technical outline",
+    "topic_confirmation": "lesson-title-confirmed-from-prior-context",
+    "original_full_transcript_available": false,
+    "last_editorial_review": "2026-11-22",
+    "review_scope": "Markdown structure, illustrative YAML syntax, external authoritative-doc cross-check of selected topics"
+  },
+  "2": {
+    "file": "docs/01-foundations/lesson-02-core-resources.md",
+    "status": "expanded-reconstructed-needs-full-source-comparison",
+    "source": "conversation history or earlier generated technical outline",
+    "topic_confirmation": "lesson-title-confirmed-from-prior-context",
+    "original_full_transcript_available": false,
+    "last_editorial_review": "2026-11-22",
+    "review_scope": "Markdown structure, illustrative YAML syntax, external authoritative-doc cross-check of selected topics"
+  },
+  "3": {
+    "file": "docs/01-foundations/lesson-03-cluster-architecture.md",
+    "status": "expanded-reconstructed-needs-full-source-comparison",
+    "source": "conversation history or earlier generated technical outline",
+    "topic_confirmation": "lesson-title-confirmed-from-prior-context",
+    "original_full_transcript_available": false,
+    "last_editorial_review": "2026-11-22",
+    "review_scope": "Markdown structure, illustrative YAML syntax, external authoritative-doc cross-check of selected topics"
+  },
+  "4": {
+    "file": "docs/02-controllers-platform/lesson-04-controller-foundations.md",
+    "status": "expanded-reconstructed-needs-full-source-comparison",
+    "source": "conversation history or earlier generated technical outline",
+    "topic_confirmation": "lesson-title-confirmed-from-prior-context",
+    "original_full_transcript_available": false,
+    "last_editorial_review": "2026-11-22",
+    "review_scope": "Markdown structure, illustrative YAML syntax, external authoritative-doc cross-check of selected topics"
+  },
+  "5": {
+    "file": "docs/02-controllers-platform/lesson-05-platform-integration.md",
+    "status": "expanded-reconstructed-needs-full-source-comparison",
+    "source": "conversation history or earlier generated technical outline",
+    "topic_confirmation": "topic-confirmed-title-not-confirmed",
+    "original_full_transcript_available": false,
+    "last_editorial_review": "2026-11-22",
+    "review_scope": "Markdown structure, illustrative YAML syntax, external authoritative-doc cross-check of selected topics"
+  },
+  "6": {
+    "file": "docs/02-controllers-platform/lesson-06-workload-identity-secrets.md",
+    "status": "expanded-reconstructed-needs-full-source-comparison",
+    "source": "conversation history or earlier generated technical outline",
+    "topic_confirmation": "topic-confirmed-title-not-confirmed",
+    "original_full_transcript_available": false,
+    "last_editorial_review": "2026-11-22",
+    "review_scope": "Markdown structure, illustrative YAML syntax, external authoritative-doc cross-check of selected topics"
+  },
+  "7": {
+    "file": "docs/02-controllers-platform/lesson-07-admission.md",
+    "status": "expanded-reconstructed-needs-full-source-comparison",
+    "source": "conversation history or earlier generated technical outline",
+    "topic_confirmation": "topic-confirmed-title-not-confirmed",
+    "original_full_transcript_available": false,
+    "last_editorial_review": "2026-11-22",
+    "review_scope": "Markdown structure, illustrative YAML syntax, external authoritative-doc cross-check of selected topics"
+  },
+  "8": {
+    "file": "docs/02-controllers-platform/lesson-08-operators.md",
+    "status": "expanded-reconstructed-needs-full-source-comparison",
+    "source": "conversation history or earlier generated technical outline",
+    "topic_confirmation": "topic-confirmed-from-conversation",
+    "original_full_transcript_available": false,
+    "last_editorial_review": "2026-11-22",
+    "review_scope": "Markdown structure, illustrative YAML syntax, external authoritative-doc cross-check of selected topics"
+  },
+  "9": {
+    "file": "docs/03-gitops-delivery/lesson-09-gitops-bootstrap.md",
+    "status": "expanded-reconstructed-needs-full-source-comparison",
+    "source": "conversation history or earlier generated technical outline",
+    "topic_confirmation": "topic-confirmed-from-conversation",
+    "original_full_transcript_available": false,
+    "last_editorial_review": "2026-11-22",
+    "review_scope": "Markdown structure, illustrative YAML syntax, external authoritative-doc cross-check of selected topics"
+  },
+  "10": {
+    "file": "docs/03-gitops-delivery/lesson-10-progressive-delivery.md",
+    "status": "expanded-reconstructed-needs-full-source-comparison",
+    "source": "conversation history or earlier generated technical outline",
+    "topic_confirmation": "topic-confirmed-from-conversation",
+    "original_full_transcript_available": false,
+    "last_editorial_review": "2026-11-22",
+    "review_scope": "Markdown structure, illustrative YAML syntax, external authoritative-doc cross-check of selected topics"
+  },
+  "11": {
+    "file": "docs/04-observability/lesson-11-observability.md",
+    "status": "expanded-reconstructed-needs-full-source-comparison",
+    "source": "conversation history or earlier generated technical outline",
+    "topic_confirmation": "topic-confirmed-from-conversation",
+    "original_full_transcript_available": false,
+    "last_editorial_review": "2026-11-22",
+    "review_scope": "Markdown structure, illustrative YAML syntax, external authoritative-doc cross-check of selected topics"
+  },
+  "12": {
+    "file": "docs/05-networking/lesson-12-kubernetes-networking.md",
+    "status": "expanded-reconstructed-needs-full-source-comparison",
+    "source": "conversation history or earlier generated technical outline",
+    "topic_confirmation": "topic-confirmed-from-conversation",
+    "original_full_transcript_available": false,
+    "last_editorial_review": "2026-11-22",
+    "review_scope": "Markdown structure, illustrative YAML syntax, external authoritative-doc cross-check of selected topics"
+  },
+  "13": {
+    "file": "docs/05-networking/lesson-13-gke-networking.md",
+    "status": "expanded-reconstructed-needs-full-source-comparison",
+    "source": "conversation history or earlier generated technical outline",
+    "topic_confirmation": "topic-confirmed-from-conversation",
+    "original_full_transcript_available": false,
+    "last_editorial_review": "2026-11-22",
+    "review_scope": "Markdown structure, illustrative YAML syntax, external authoritative-doc cross-check of selected topics"
+  },
+  "14": {
+    "file": "docs/05-networking/lesson-14-istio.md",
+    "status": "expanded-reconstructed-needs-full-source-comparison",
+    "source": "conversation history or earlier generated technical outline",
+    "topic_confirmation": "topic-confirmed-from-conversation",
+    "original_full_transcript_available": false,
+    "last_editorial_review": "2026-11-22",
+    "review_scope": "Markdown structure, illustrative YAML syntax, external authoritative-doc cross-check of selected topics"
+  },
+  "15": {
+    "file": "docs/06-compute-storage/lesson-15-scheduling.md",
+    "status": "expanded-reconstructed-needs-full-source-comparison",
+    "source": "conversation history or earlier generated technical outline",
+    "topic_confirmation": "topic-confirmed-from-conversation",
+    "original_full_transcript_available": false,
+    "last_editorial_review": "2026-11-22",
+    "review_scope": "Markdown structure, illustrative YAML syntax, external authoritative-doc cross-check of selected topics"
+  },
+  "16": {
+    "file": "docs/06-compute-storage/lesson-16-storage.md",
+    "status": "expanded-reconstructed-needs-full-source-comparison",
+    "source": "conversation history or earlier generated technical outline",
+    "topic_confirmation": "topic-confirmed-from-conversation",
+    "original_full_transcript_available": false,
+    "last_editorial_review": "2026-11-22",
+    "review_scope": "Markdown structure, illustrative YAML syntax, external authoritative-doc cross-check of selected topics"
+  },
+  "17": {
+    "file": "docs/07-reliability/lesson-17-disaster-recovery.md",
+    "status": "expanded-reconstructed-needs-full-source-comparison",
+    "source": "conversation history or earlier generated technical outline",
+    "topic_confirmation": "topic-confirmed-from-conversation",
+    "original_full_transcript_available": false,
+    "last_editorial_review": "2026-11-22",
+    "review_scope": "Markdown structure, illustrative YAML syntax, external authoritative-doc cross-check of selected topics"
+  },
+  "18": {
+    "file": "docs/08-security-governance/lesson-18-security.md",
+    "status": "expanded-reconstructed-needs-full-source-comparison",
+    "source": "conversation history or earlier generated technical outline",
+    "topic_confirmation": "topic-confirmed-from-conversation",
+    "original_full_transcript_available": false,
+    "last_editorial_review": "2026-11-22",
+    "review_scope": "Markdown structure, illustrative YAML syntax, external authoritative-doc cross-check of selected topics"
+  },
+  "19": {
+    "file": "docs/08-security-governance/lesson-19-multi-tenancy.md",
+    "status": "expanded-reconstructed-needs-full-source-comparison",
+    "source": "conversation history or earlier generated technical outline",
+    "topic_confirmation": "topic-confirmed-from-conversation",
+    "original_full_transcript_available": false,
+    "last_editorial_review": "2026-11-22",
+    "review_scope": "Markdown structure, illustrative YAML syntax, external authoritative-doc cross-check of selected topics"
+  }
+}

@@ -1,0 +1,12 @@
+:root {--ifm-color-primary:#0e897d;--ifm-color-primary-dark:#087b70;--ifm-color-primary-darker:#076c62;--ifm-color-primary-light:#12a190;--ifm-color-primary-lighter:#16b5a2;--ifm-font-family-base:Inter,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;--ifm-code-font-size:90%;}
+[data-theme='dark']{--ifm-color-primary:#45d4b4;--ifm-color-primary-dark:#23cba6;--ifm-color-primary-light:#71e1c7;--ifm-background-color:#0c1319;--ifm-background-surface-color:#142029;}
+.markdown h1{letter-spacing:-.035em}.markdown h2{margin-top:2.25rem;padding-top:.4rem;border-top:1px solid var(--ifm-color-emphasis-200)}
+.hero-home{padding:4rem 1rem 3rem;background:radial-gradient(circle at 80% 25%,rgba(20,175,145,.15),transparent 35%),linear-gradient(140deg,#10232c,#111827);color:#fff;border-radius:18px;margin-bottom:2rem}
+.hero-home h1{font-size:clamp(2.1rem,5vw,3.7rem);font-weight:800;letter-spacing:-.045em;line-height:1.09}
+.hero-home p{font-size:1.15rem;max-width:780px;color:#c5d6d4}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:1rem;margin:1.25rem 0}
+.topic-card{border:1px solid var(--ifm-color-emphasis-300);border-radius:12px;padding:1.25rem;text-decoration:none!important;color:inherit!important;transition:transform .15s,border-color .15s;background:var(--ifm-background-surface-color)}
+.topic-card:hover{transform:translateY(-3px);border-color:var(--ifm-color-primary)}
+.topic-card h3{margin-top:0}.status-draft{font-size:.8rem;color:#a16a00}
+
+.search-input{font:inherit;width:100%;padding:1rem 1.2rem;border:1px solid var(--ifm-color-emphasis-400);border-radius:12px;background:var(--ifm-background-surface-color);color:var(--ifm-font-color-base);outline-color:var(--ifm-color-primary)}
