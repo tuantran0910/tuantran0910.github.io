@@ -223,7 +223,174 @@ kubectl describe pod postgres-0 -n databases
 
 Sources: [Persistent Volumes](https://kubernetes.io/docs/concepts/storage/persistent-volumes/), [Storage Classes](https://kubernetes.io/docs/concepts/storage/storage-classes/), [StatefulSets](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/), [VolumeSnapshots](https://kubernetes.io/docs/concepts/storage/volume-snapshots/).
 
-## Self-Check Questions
+## Trace a PostgreSQL volume from claim to mounted filesystem
+
+A container writable layer can disappear when the container is replaced. An emptyDir survives container restarts within the same Pod and lasts for that Pod's lifetime. Persistent storage is managed independently of the Pod. A namespaced PVC declares size, access mode and class. A cluster-scoped PV represents the provisioned storage, including its capacity, topology, and CSI volume handle. The StorageClass supplies the provisioner, disk parameters, expansion support, binding timing, and initial reclaim policy.
+
+```mermaid
+flowchart LR
+  C[PVC and StorageClass] --> V[Provisioner calls CSI CreateVolume]
+  V --> B[PV bound to claim]
+  B --> A[Volume made available to target node]
+  A --> N[Kubelet and CSI node driver publish volume]
+  N --> P[Application reads and writes]
+  S[Scheduler evaluates consumer and volume topology] --> V
+  S --> A
+```
+
+The scheduler input to provisioning applies to delayed binding. With Immediate, the external provisioner can create a disk as soon as the claim appears. A zonal disk created in A cannot satisfy a Pod constrained to B. WaitForFirstConsumer lets the scheduler evaluate the claim alongside Pod placement, select candidate topology, and coordinate provisioning before completing the bind. Setting spec.nodeName bypasses this process. Use a selector or affinity to express placement. Quota, attach limits, and compatible nodes still matter. [StorageClass binding modes](https://kubernetes.io/docs/concepts/storage/storage-classes/) · [Persistent Volumes](https://kubernetes.io/docs/concepts/storage/persistent-volumes/)
+
+| CSI action | Evidence or responsibility |
+|---|---|
+| CreateVolume / DeleteVolume | Controller plugin creates or deletes backend storage, typically through a provider API. |
+| ControllerPublishVolume / ControllerUnpublishVolume | Controller-side attach and detach for drivers requiring attachment. The external attacher observes cluster-scoped VolumeAttachment objects. |
+| NodeStageVolume | Driver optionally prepares the device or filesystem on the node. |
+| NodePublishVolume / NodeUnpublishVolume | Node plugin publishes or unpublishes the volume at the workload path. |
+
+Some file services do not need a block-device attachment step. A successful claim bind proves a volume was selected. It does not prove that the volume attached or mounted, nor that PostgreSQL could replay WAL and accept writes. [Container Storage Interface specification](https://github.com/container-storage-interface/spec/blob/master/spec.md)
+
+### Choose access and topology together
+
+| Mode | Access scope |
+|---|---|
+| RWO | Read-write from a single node. Several Pods on that node can potentially use the claim. |
+| ROX | Read-only mounting from multiple nodes when supported. |
+| RWX | Read-write mounting from multiple nodes when supported. |
+| RWOP | Single-Pod access with compatible CSI infrastructure. |
+
+Choose a supported access mode for the driver and workload. RWX does not coordinate database writers. Give database replicas independent data directories and implement replication and recovery with the database or an operator.
+
+| GKE backend | What to assess |
+|---|---|
+| Zonal Persistent Disk | Block storage from `pd.csi.storage.gke.io`, with disk locality and supported node attachments. |
+| Regional Persistent Disk | Synchronous replication between two zones, with an application and storage failover procedure for a single writer. |
+| Hyperdisk | Variant-specific IOPS and throughput configuration, machine compatibility, zone, and attachment features. |
+| Filestore | Managed NFS and `filestore.csi.storage.gke.io` for supported shared file workloads. Assess latency, locking, and cost. |
+| Cloud Storage | Object storage for media, artifacts and backups. Evaluate object semantics before adapting a filesystem workload. |
+
+Replicated storage can preserve availability during a zone problem. Logical deletion can replicate as well, so retain recovery points independently. [GKE storage overview](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/storage-overview) · [GKE Persistent Disk CSI](https://docs.cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/gce-pd-csi-driver)
+
+### Observe ordinal identity and retention in a lab
+
+This set uses the GKE PD CSI driver. On another test cluster, use an available test StorageClass supporting provision and mount. Create the storage-lab namespace before applying the namespaced objects.
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: storage-demo-ssd
+provisioner: pd.csi.storage.gke.io
+parameters:
+  type: pd-ssd
+allowVolumeExpansion: true
+reclaimPolicy: Retain
+volumeBindingMode: WaitForFirstConsumer
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: storage-demo
+  namespace: storage-lab
+spec:
+  clusterIP: None
+  selector: {app: storage-demo}
+  ports: [{name: http, port: 80}]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: storage-demo
+  namespace: storage-lab
+spec:
+  serviceName: storage-demo
+  replicas: 3
+  selector:
+    matchLabels: {app: storage-demo}
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  template:
+    metadata:
+      labels: {app: storage-demo}
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.27
+          ports: [{name: http, containerPort: 80}]
+          volumeMounts:
+            - name: data
+              mountPath: /usr/share/nginx/html
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        storageClassName: storage-demo-ssd
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 10Gi
+```
+
+The governing headless Service supports name resolution such as `storage-demo-0.storage-demo.storage-lab.svc.cluster.local`, subject to readiness and DNS settings. OrderedReady creates the next ordinal after earlier ones are ready. Parallel alters scaling management while rolling updates retain their own ordering. A StatefulSet enables stable identities and per-ordinal storage. Database HA still requires database replication, failover and consistency controls.
+
+In an isolated lab, write a disposable marker into the mounted directory on storage-demo-0. Record the Pod UID, PVC and backing PV. Replace only that lab Pod, wait for the recreated ordinal, then read the marker again and compare UIDs and claims. Inspect the backing disk inventory before any cleanup. Retained PVs and disks can remain billable after the namespace is removed.
+
+| Lifecycle action | Decision to verify |
+|---|---|
+| StatefulSet scale-down | whenScaled controls claims created from the templates for removed ordinals. |
+| StatefulSet deletion | whenDeleted controls those template-created claims. |
+| PVC deletion | The bound PV's reclaim policy controls backend retention or deletion. |
+| StorageClass edit | Inspect existing PVs individually. They retain the policy copied at provisioning unless changed separately. |
+| Argo CD pruning | Removing a tracked claim can trigger PVC deletion. A claim in use can be protected temporarily by a finalizer. |
+
+A scale PR from three to one can remove two disks if whenScaled is Delete and the PVs use Delete. Use a reviewed decommission procedure and verified backups. An Argo CD `Prune=false` sync option can protect from pruning for that resource, while other deletion paths remain possible. [StatefulSet storage lifecycle](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/) · [Argo CD sync options](https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/)
+
+### Snapshot and restore a new claim
+
+Assume the snapshot APIs and CSI snapshot infrastructure are installed and the original claim is in storage-lab. Wait for readyToUse before creating the restore claim.
+
+```yaml
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: storage-demo-snapshot
+driver: pd.csi.storage.gke.io
+deletionPolicy: Retain
+---
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+  name: storage-demo-copy
+  namespace: storage-lab
+spec:
+  volumeSnapshotClassName: storage-demo-snapshot
+  source:
+    persistentVolumeClaimName: data-storage-demo-0
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: storage-demo-restored
+  namespace: storage-lab
+spec:
+  storageClassName: storage-demo-ssd
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 10Gi
+  dataSource:
+    apiGroup: snapshot.storage.k8s.io
+    kind: VolumeSnapshot
+    name: storage-demo-copy
+```
+
+A VolumeSnapshot is the request, VolumeSnapshotContent represents the backing snapshot, and VolumeSnapshotClass carries driver and deletion settings. Restore provisions a separate volume. With the class above a consumer is needed to trigger delayed provisioning. Use at least the snapshot restore size and inspect conditions. Retain preserves the backing snapshot and content according to snapshot lifecycle rules. A disk snapshot taken during writes may offer only crash-consistent recovery. To reach a five-minute RPO, consider database-native backups and WAL archival with tested PITR. Measure elapsed restore, validation and traffic recovery against the RTO. Account for retention, access, encryption and target-region availability. [Kubernetes VolumeSnapshots](https://kubernetes.io/docs/concepts/storage/volume-snapshots/)
+
+For PVC Pending, inspect events for first-consumer waiting, class mismatch, quota and provisioning errors. For FailedScheduling, compare PV node affinity with eligible nodes. For FailedAttachVolume or Multi-Attach, inspect VolumeAttachment and whether the old workload has stopped. For FailedMount, inspect the CSI node driver, filesystem and permissions. If the database runs but stays unready, check replay, integrity and leadership. Preserve single-writer ownership throughout recovery. Continue with [Lesson 17 — High Availability and Disaster Recovery](../07-reliability/lesson-17-disaster-recovery.md).
+
+Practice with the [platform operations exercises](./platform-operations-exercises.mdx).
+
+## Self-check questions
 
 1. Which controller owns the desired state and the actual state in this context?
 2. What failure modes can occur even when the Kubernetes resource reports `Ready`?

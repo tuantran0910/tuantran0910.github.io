@@ -1,0 +1,70 @@
+---
+title: "Kubernetes Networking Exercises"
+sidebar_position: 23
+tags: [kubernetes, networking, troubleshooting]
+---
+
+import {NetworkingQuiz} from '@site/src/components/GitOpsExercises';
+
+## Diagnose from the same source Pod
+
+For each case, pick the next test before revealing the explanation. Assume the application expects the same HTTP host and path for each probe.
+
+<details>
+<summary>The name returns NXDOMAIN, and the ClusterIP returns HTTP 200.</summary>
+
+Inspect the source Pod's DNS search domains and verify the Service name, namespace, and cluster domain. This request reaches the Service successfully by address.
+
+</details>
+
+<details>
+<summary>The name resolves, the ClusterIP times out, and the backend Pod IP returns HTTP 200.</summary>
+
+Compare Service port and targetPort with the EndpointSlice ports and endpoint conditions. Check Service forwarding and policy evaluation. A single successful backend test proves only that one path works.
+
+</details>
+
+<details>
+<summary>Internal HTTP requests work, but the public gateway returns 502.</summary>
+
+Check the route parent conditions, the configured upstream protocol and port, and load balancer health. Identify the upstream selected by the gateway and use its logs to narrow down the failure.
+
+</details>
+
+## Check your networking understanding
+
+<NetworkingQuiz />
+
+Continue with [the Layer 3 through Layer 7 troubleshooting walkthrough](./lesson-12-kubernetes-networking.md#troubleshoot-the-502-with-controlled-comparisons).
+
+import {GkePodCapacityExercise, GkeNetworkingQuiz} from '@site/src/components/GitOpsExercises';
+
+## Calculate GKE Pod IP capacity
+
+Start with a /16 and 110 Pods per node. Compare the result with 64 Pods per node. The model assumes one homogeneous IPv4 Pod secondary range and uses the documented block allocation formula. Primary subnet capacity, system Pods, quotas, mixed pools, and upgrade headroom affect usable capacity.
+
+<GkePodCapacityExercise />
+
+## Check your GKE networking understanding
+
+<GkeNetworkingQuiz />
+
+Continue with [the GKE load balancer diagnosis](./lesson-13-gke-networking.md#diagnose-a-502-from-the-frontend-through-the-neg).
+
+import {IstioTrafficExercise, IstioLabChecklist, IstioQuiz} from '@site/src/components/GitOpsExercises';
+
+## Model Istio traffic and retries
+
+Change the target canary weight and compare the two route shares. Observed traffic can vary from the weights. For retries, change the hop count and attempts to see an upper bound that assumes every hop retries fully. Deadlines, cancellation, and actual failures affect the observed result.
+
+<IstioTrafficExercise />
+
+## Track the service mesh lab
+
+<IstioLabChecklist />
+
+## Check your Istio understanding
+
+<IstioQuiz />
+
+Continue with [the Payment-to-Order walkthrough](./lesson-14-istio.md#follow-a-payment-request-through-the-mesh).

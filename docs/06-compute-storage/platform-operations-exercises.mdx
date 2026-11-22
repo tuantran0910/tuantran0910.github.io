@@ -1,0 +1,29 @@
+---
+title: "Platform Operations Exercises"
+sidebar_position: 23
+tags: [kubernetes, scheduling, storage, recovery, security, governance]
+---
+
+import {SchedulingCapacityExercise, RecoveryBudgetExercise, TenantQuotaExercise, PlatformOperationsQuiz} from '@site/src/components/GitOpsExercises';
+
+## Model scheduling and horizontal scaling
+
+Filter by uncommitted requests and compare scores of eligible nodes. The HPA model uses the basic ratio and replica bounds. It assumes metrics are present and omits stabilization, tolerance, readiness handling, and scaling policies.
+
+<SchedulingCapacityExercise />
+
+## Estimate a recovery timeline
+
+Add the three phases as if they happened sequentially. Compare elapsed time with the RTO. The model omits parallel work, retries, and external dependency delays.
+
+<RecoveryBudgetExercise />
+
+## Calculate tenant CPU quota
+
+This model assumes every Pod has the same total CPU request and that other workloads use none of the quota. Memory, object count, and other budgets can constrain actual admission.
+
+<TenantQuotaExercise />
+
+## Check Lessons 15 through 19
+
+<PlatformOperationsQuiz />

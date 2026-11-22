@@ -80,11 +80,98 @@ CR status and conditions
 
 If the cloud API quota is exhausted or IAM permissions are missing, Kubernetes can still successfully store the object while the controller repeatedly reports reconciliation errors. Distinguish **API acceptance** from **external resource readiness**.
 
+### Follow a StorageBucket from API admission to cloud readiness
+
+The CRD exposes a namespaced `StorageBucket` API under `storage.cnrm.cloud.google.com`. A request to create a CR passes authentication, authorization, admission and schema validation. Kubernetes persists the accepted object in etcd. At this point `spec.storageClass: STANDARD` is stored desired state. The bucket may still be absent from Google Cloud.
+
+A controller typically lists existing objects, then watches changes using the returned `resourceVersion`. The watch sends `ADDED`, `MODIFIED`, and `DELETED` events. A client that receives `410 Gone` for a stale watch position can relist and start a fresh watch. A typical Go controller keeps an informer cache and queues resource keys such as `config-control/unique-bucket-name-replace-me`. A worker reads the current object when it processes the key, so it can converge on the latest spec even when several updates are coalesced. This describes the standard controller pattern. Config Connector's documented parent controller dispatches requests to resource-specific implementations, which include direct and Terraform-based controllers. It uses Kubernetes APIs to read and update CRs and cloud APIs to manage real resources. [Kubernetes API concepts](https://kubernetes.io/docs/reference/using-api/api-concepts/) · [Config Connector controller types](https://docs.cloud.google.com/config-connector/docs/concepts/controller-types)
+
+### Why a cloud-side edit can be repaired without a Kubernetes event
+
+| Step | Kubernetes CR | Google Cloud bucket |
+| --- | --- | --- |
+| Initial successful reconciliation | `STANDARD` | `STANDARD` |
+| Operator changes storage class in Cloud Console | `STANDARD` | `NEARLINE` |
+| Scheduled reconcile reads cloud state | `STANDARD` | `NEARLINE` detected |
+| Controller applies the supported update | `STANDARD` | `STANDARD` |
+
+The Console edit changes the cloud resource independently of the CR. A periodic reconcile still reads actual state and compares fields declared in the CR. A delayed requeue illustrates how a controller can schedule another pass without a fresh watch event. A restart can rebuild the work from persisted CRs. A temporary cloud API failure can delay convergence and produce retries, condition changes and events.
+
+Google Cloud documents a resource-specific average interval with jitter. The StorageBucket reference lists a 600-second default average. Where appropriate, set `cnrm.cloud.google.com/reconcile-interval-in-seconds: "60"` under the CR's annotations to request a shorter average. Short intervals increase cloud API calls. Setting the value to `"0"` stops periodic reconciliation after the object is up to date. Google documents that editing the value back to nonzero alone does not restore it. Follow the documented recovery procedure if needed. This behavior is independent of Argo CD polling and self-heal. [Reconciliation strategy](https://docs.cloud.google.com/config-connector/docs/concepts/reconciliation) · [StorageBucket reference](https://docs.cloud.google.com/config-connector/docs/reference/resource-docs/storage/storagebucket)
+
+### Troubleshoot a resource that was accepted but is still pending
+
+```bash
+kubectl get crd storagebuckets.storage.cnrm.cloud.google.com
+kubectl -n config-control get storagebucket unique-bucket-name-replace-me -o yaml
+kubectl -n config-control describe storagebucket unique-bucket-name-replace-me
+kubectl -n cnrm-system get pods
+kubectl -n config-control wait --for=condition=Ready \
+  storagebucket/unique-bucket-name-replace-me --timeout=300s
+```
+
+Use a dedicated project and a globally unique bucket name for a provisioning lab. Verify the Config Connector identity can access that project. When a CR reports `Ready=True`, compare `status.observedGeneration` with `metadata.generation` to make sure the status describes the update you are checking. A wait for `Ready` alone can observe an older successful condition. Watch CR status with `kubectl get storagebuckets -n config-control -w` and compare it with the cloud view. Permission errors, missing references, immutable fields and write-only settings each require different remedies. A write-only value such as a password cannot be compared by reading cloud state, while an immutable location requires a resource-specific migration plan. [Config Connector troubleshooting](https://docs.cloud.google.com/config-connector/docs/troubleshooting)
+
+For a lab rollback, revert the declared mutable value in the authoritative source, then check both status and the real resource. Review deletion behavior before removing a CR from a source with pruning enabled. The `cnrm.cloud.google.com/deletion-policy: abandon` annotation can preserve the actual resource when the CR is removed. Verify the annotation on the live CR before allowing removal. [Config Connector annotations](https://docs.cloud.google.com/config-connector/docs/reference/annotations)
+
+### Read generation and readiness together
+
+Suppose the bucket was provisioned at generation 1. You then change the desired storage class to `NEARLINE`. A read immediately after applying the change might return this excerpt:
+
+```yaml
+metadata:
+  name: unique-bucket-name-replace-me
+  namespace: config-control
+  generation: 2
+spec:
+  storageClass: NEARLINE
+status:
+  observedGeneration: 1
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: UpToDate
+```
+
+The API server has accepted generation 2. The controller's status still describes generation 1, so this `Ready=True` cannot confirm the new storage class. In a successful update, look for both `status.observedGeneration: 2` and `Ready=True`, then confirm the real bucket through Cloud Storage. If the generation matches but `Ready` is false, read its reason, message and recent events. A condition can also become stale after an external change until the next cloud-side check.
+
+```bash
+kubectl -n config-control get storagebucket unique-bucket-name-replace-me -o jsonpath='{.metadata.generation}{" desired / "}{.status.observedGeneration}{" observed\n"}{range .status.conditions[?(@.type=="Ready")]}{.status}{" "}{.reason}{": "}{.message}{"\n"}{end}'
+```
+
+### Model a delayed requeue
+
+This pseudocode illustrates how a worker can schedule another check even when Kubernetes sends no new event. Config Connector's implementation and retry behavior vary by controller and resource.
+
+```text
+reconcile(key):
+    object = read current Kubernetes object by key
+    if object no longer exists:
+        finish
+
+    actual = read the corresponding Cloud Storage bucket
+    if the cloud read fails with a retryable error:
+        record the failure when possible
+        retry using backoff
+
+    if bucket is absent:
+        request creation using object.spec
+    else if a managed, mutable field differs:
+        request an update using object.spec
+
+    record observed generation and reconciliation result
+    schedule this key again after the configured delay with jitter
+```
+
+After a Console edit to the bucket, its CR can still have the same `generation` and `resourceVersion` it had before the edit. The delayed check reads the cloud field directly, discovers the mismatch and attempts repair. In a sandbox, record the declared value, the out-of-band value, the next reconciliation result and the final cloud value. If the actual field still differs, check IAM permissions, whether the field was declared and is writable, and whether periodic reconciliation is enabled. [Reconciliation strategy](https://docs.cloud.google.com/config-connector/docs/concepts/reconciliation) · [StorageBucket status](https://docs.cloud.google.com/config-connector/docs/reference/resource-docs/storage/storagebucket)
+
 ## 4. Config Sync vs. Argo CD
 
 Config Sync applies configuration from Git to Kubernetes clusters. Argo CD typically provides an application delivery model and application-level health and sync semantics. The two tools can coexist, but ownership must be clear for CRDs, namespaces, NetworkPolicies, policies, and workloads.
 
 For example, a Config Sync Git repository can hold namespace-wide security policies while Argo CD manages only application Deployments. If both apply the same `NetworkPolicy`, their reconciliation loops can fight each other and cause drift.
+
+For fleet membership, namespace delegation, and controller selection, see [Argo CD, Config Sync, and GKE Fleet Management](./fleet-config-sync.md).
 
 ## 5. Resource deletion and ownership boundaries
 

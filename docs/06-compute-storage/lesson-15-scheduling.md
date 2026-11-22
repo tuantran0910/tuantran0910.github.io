@@ -210,7 +210,122 @@ kubectl get priorityclasses,pdb -A
 
 Sources: [Scheduling Framework](https://kubernetes.io/docs/concepts/scheduling-eviction/scheduling-framework/), [Manage resources](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/), [HPA](https://kubernetes.io/docs/concepts/workloads/autoscaling/horizontal-pod-autoscale/), [GKE autoscaler](https://cloud.google.com/kubernetes-engine/docs/concepts/cluster-autoscaler).
 
-## Self-Check Questions
+## Trace a traffic spike through the capacity controllers
+
+At 300 requests per second, three Payment Pods keep up. At 3,000 requests per second, the HPA observes its configured metric and writes the desired count through the Deployment's scale subresource. The Deployment controller drives ReplicaSets, whose controller creates Pods. The scheduler filters and ranks nodes, then binds each Pod. If no node fits, GKE Cluster Autoscaler can add capacity if a simulated node from an eligible pool fits the Pod. Once kubelet starts the containers and readiness succeeds, Service endpoints can begin receiving traffic. Every step adds latency to the response to a spike.
+
+```mermaid
+flowchart LR
+  M[Workload metrics] --> H[HPA updates desired replicas]
+  H --> R[Deployment and ReplicaSet controllers create Pods]
+  R --> S[Scheduler filters and scores nodes]
+  S -->|Fits| K[Kubelet starts containers]
+  S -->|Unschedulable| A[Autoscaler evaluates node pools]
+  A --> N[New node registers]
+  N --> S
+  K --> E[Readiness updates Service endpoints]
+```
+
+### Work an actual placement decision
+
+The scheduler sorts queued Pods, computes shared state in PreFilter, and filters candidates. PostFilter can attempt preemption when no node passes. PreScore and Score rank feasible nodes. Reserve lets plugins track assumed state before final binding. Permit can approve, delay, or reject. PreBind prepares prerequisites, Bind records the assignment, and PostBind follows a successful binding. Scheduling cycles run serially while binding cycles may overlap. Kubelet acts after assignment. [Scheduling framework](https://kubernetes.io/docs/concepts/scheduling-eviction/scheduling-framework/)
+
+| Candidate | Uncommitted CPU requests | Uncommitted memory requests | Illustrative score |
+|---|---:|---:|---:|
+| A | 500m | 4 GiB | 90 |
+| B | 2,000m | 2 GiB | 75 |
+| C | 1,500m | 512 MiB | 95 |
+
+For a 1,000m, 1 GiB Pod, only B passes. For a 500m, 1 GiB Pod, A and B pass and A wins in this model. Actual scores combine enabled plugins and weights. Consider architecture, taints, affinity, volume topology, and available Pod slots before treating CPU and memory as decisive.
+
+### Capacity, runtime limits, and QoS
+
+Node allocatable accounts for system and Kubernetes reservations. Placement uses allocatable minus committed requests. For example, a Payment container requesting 500m and 512Mi plus a regular Envoy sidecar requesting 100m and 128Mi together require 600m and 640Mi before Pod overhead. Init containers, restartable init sidecars, and supported Pod-level resource declarations have additional accounting rules.
+
+A CPU request influences scheduling and relative CPU shares under contention. A CPU limit limits runtime CPU bandwidth. A 200m limit can throttle an application even when the node is idle. Track throttling alongside P99 latency. A 512Mi memory limit can trigger a cgroup OOM kill when breached. Check termination reason and node events because exit code 137 alone identifies SIGKILL and has other possible causes.
+
+With conventional container-level resources, Guaranteed requires every container to have equal CPU request and limit and equal memory request and limit. A Pod with some CPU or memory resources and unequal requests and limits is typically Burstable. A Pod with neither CPU nor memory requests or limits is BestEffort. A sidecar can change the class. Under node pressure, kubelet considers resource usage above requests, Pod priority, and how far usage exceeds requests. PriorityClass separately influences queue order and scheduler preemption. Preemption attempts to minimize PDB violations on a best-effort basis. Removing lower-priority Pods cannot solve a missing label, an untolerated taint, or a disk in the wrong zone. [Resource management](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/) · [Pod QoS](https://kubernetes.io/docs/concepts/workloads/pods/pod-qos/) · [Priority and preemption](https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/)
+
+### Place replicas across failure domains
+
+A nodeSelector is mandatory. Required node affinity is mandatory at scheduling time and preferred node affinity contributes a score. A matching toleration permits placement on a tainted node. Pair it with an affinity or selector to restrict placement to dedicated nodes. NoSchedule blocks new scheduling, PreferNoSchedule makes avoidance a preference, and NoExecute can also evict existing Pods without a matching toleration.
+
+Required pod anti-affinity on `kubernetes.io/hostname` can prevent co-location at the cost of needing enough nodes for surge and replacements. Zone spreading can give six replicas a 2/2/2 distribution if three suitable zones have capacity:
+
+```yaml
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: DoNotSchedule
+    labelSelector:
+      matchLabels:
+        app: payment
+```
+
+This goes in the Pod spec. DoNotSchedule enforces skew while ScheduleAnyway favors balance as a score. Eligible domains, node affinity, taint inclusion, and optional minDomains influence outcomes. Test with a surviving subset of zones as well as with normal capacity. [Pod placement](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/) · [Topology spread](https://kubernetes.io/docs/concepts/scheduling-eviction/topology-spread-constraints/)
+
+### Coordinate HPA, VPA, and GKE node provisioning
+
+The basic HPA proposal rounds up current replicas multiplied by observed metric divided by target. At three replicas and 90% against 60%, the proposal is five. HPA also applies bounds, tolerance, readiness and missing-metric handling, and scaling behavior. CPU utilization is relative to requests. At 300m observed usage, requests of 300m, 500m, and 1,000m give 100%, 60%, and 30%. A sidecar's CPU request can affect a Pod-wide resource metric. Consider a container metric for the application when the cluster supports it. Resource metrics commonly come from Metrics Server. Custom and external metric adapters can supply queue lag or comparable signals for I/O-bound workloads.
+
+Upstream Kubernetes v1.37 documents scale-to-zero as beta under HPAScaleToZero. It requires at least one Object or External metric and feature availability on the API server and controller manager. CPU or memory from a running Pod cannot wake a workload at zero. Verify your managed cluster version and support before relying on this behavior. [Horizontal Pod Autoscaling](https://kubernetes.io/docs/concepts/workloads/autoscaling/horizontal-pod-autoscale/)
+
+```yaml
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: payment-vpa
+  namespace: payments
+spec:
+  targetRef: {apiVersion: apps/v1, kind: Deployment, name: payment}
+  updatePolicy:
+    updateMode: "Off"
+  resourcePolicy:
+    containerPolicies:
+      - containerName: payment
+        controlledResources: [cpu, memory]
+```
+
+This requires the VPA API and controller. Inspect lowerBound, target, upperBound and uncappedTarget with `kubectl describe vpa payment-vpa -n payments`. Recreate can apply recommendations through Pod replacement. InPlaceOrRecreate can attempt an in-place update and fall back to replacement where supported. Verify GKE version requirements. Active VPA on CPU can move the denominator used by HPA, causing replica changes under identical load. Recommendation-only VPA or an HPA on application metrics avoids that particular coupling. [GKE VPA](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/verticalpodautoscaler)
+
+The GKE Autoscaler evaluates whether adding nodes can make unschedulable Pods fit. It uses scheduling constraints and requests rather than CPU saturation alone. Additional 4-CPU nodes cannot fit one Pod requesting 16 CPU. GKE node pool auto-creation and supported ComputeClasses can supply a different node shape under configured policies. Karpenter is also a node provisioning model, with provider-specific support. Evaluate GKE-native provisioners for GKE. Scale-down likewise depends on whether workloads can move, eviction constraints, and minimum pool sizes. Inspect autoscaler visibility events for pool bounds, quota, Pod IP exhaustion, and cloud capacity. [GKE Cluster Autoscaler](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/cluster-autoscaler) · [Custom ComputeClasses](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/about-custom-compute-classes)
+
+### Debug and reproduce the capacity chain
+
+First distinguish an unbound Pending Pod with FailedScheduling from a bound Pod waiting on image pull, volume attachment, or startup. Use `kubectl describe pod`, `kubectl describe node`, and the admitted Pod spec to compare allocatable resources, committed requests, taints, topology, and PVC constraints. `kubectl top nodes` shows measured consumption. A node at 30% usage can have committed all of its requested CPU.
+
+In a test cluster with resource metrics, use the HPA manifest above with an Nginx Deployment named payment in payments and explicit requests such as 100m CPU and 128Mi memory. Use the intended namespace for both objects. Generate controlled load from inside the test cluster and observe `kubectl get hpa -n payments --watch` and `kubectl get pods -n payments -o wide --watch` in separate terminals. Idle Nginx may never cross the target. On a fixed-size lab cluster, a separate Pod whose request exceeds the allocatable CPU of every node illustrates FailedScheduling. On an autoscaling cluster, use a request that fits a permitted node type to demonstrate scale-up and check cost, node limits and IP capacity before running the test.
+
+When HPA owns replica count, remove the fixed count through a controlled handoff or use a narrow Argo CD replica ignore with RespectIgnoreDifferences. See [field ownership](../01-foundations/lesson-02-core-resources.md). At 10 replicas, maxSurge 25% can require three extra Pods. With a 600m sidecar-inclusive request, reserve 1.8 additional CPU for that surge alone. PDB minAvailable 8 protects applicable voluntary evictions, while rollout progress depends on its own strategy and available capacity. An HPA can add replicas without curing a 200m CPU limit that throttles each Pod. Compare desired, scheduled and ready replicas, throttling, latency and node provisioning time before changing more than one control.
+
+Continue with [Lesson 16 — Kubernetes Storage](./lesson-16-storage.md) to see how PVC binding and topology constrain node placement.
+
+Use this Deployment with the chapter's existing HPA in a test payments namespace. Its replica count is delegated to HPA after creation.
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment
+  namespace: payments
+spec:
+  selector:
+    matchLabels: {app: payment}
+  template:
+    metadata:
+      labels: {app: payment}
+    spec:
+      containers:
+        - name: payment
+          image: nginx:1.27
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {memory: 256Mi}
+```
+
+Practice with the [platform operations exercises](./platform-operations-exercises.mdx).
+
+## Self-check questions
 
 1. Which controller owns the desired state and the actual state in this context?
 2. What failure modes can occur even when the Kubernetes resource reports `Ready`?

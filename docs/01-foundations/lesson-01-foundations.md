@@ -98,6 +98,41 @@ Git commit changes → repository refresh → render → compare → sync
 
 A webhook from the Git provider can reduce the time it takes to detect a commit. Without a webhook, Argo CD supports periodic repository polling; the interval and jitter depend on the configuration. Do not hard-code a timing value as your GitOps SLO.
 
+### Git refresh and jitter
+
+A periodic application refresh checks the tracked source revision. The API server's webhook endpoint can also request a refresh when the Git provider reports a push. A refresh can reuse cached revision or manifest data when appropriate. The repo server resolves the source and generates desired manifests; the application controller compares the result with resources from its live-state cache. A webhook acknowledgement establishes receipt. Application status and operation results establish whether rendering and deployment succeeded. [Webhook configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/webhook/) · [High availability and caching](https://argo-cd.readthedocs.io/en/stable/operator-manual/high_availability/)
+
+The documented periodic defaults are a 120-second base interval plus up to 60 seconds of random delay. The corresponding keys belong under `data` in `argocd-cm`:
+
+```yaml
+timeout.reconciliation: "120s"
+timeout.reconciliation.jitter: "60s"
+```
+
+With 1,000 applications that become eligible simultaneously, a fixed interval can create one large refresh burst. Jitter spreads eligible refreshes across the following minute. Queue depth, worker capacity, source latency, and rendering time affect when the result appears. Backoff increases the wait after failures. Jitter spreads scheduling and can also be combined with retry backoff. Supported releases also provide separate webhook refresh jitter settings for pushes that affect many applications. [Argo CD FAQ](https://argo-cd.readthedocs.io/en/stable/faq/) · [ConfigMap settings](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-cm-yaml/)
+
+### From source change to rollout
+
+Consider `payment-service`. Git initially renders three replicas of `payment:v1.0`. A new revision renders five replicas of `payment:v1.1`. A successful comparison reports `OutOfSync` while the live Deployment still has the previous spec. An eligible automatic sync or a manual sync applies the new manifest. Kubernetes then handles rollout. During that rollout Argo CD can show `Synced` and `Progressing` at the same time. A failed readiness check can keep the application progressing or lead to a degraded status even after configuration matches.
+
+| Event | Comparison | Possible action |
+| --- | --- | --- |
+| New Git revision changes replicas from three to five | Desired five versus live three | Auto-sync can apply the revision |
+| Someone scales the live Deployment to two at the already synced revision | Desired five versus live two | Self-heal can restore five when enabled and eligible |
+| Git removes a tracked Service | Service exists only in the cluster | Automated prune can remove it when enabled |
+| A referenced values file fails to render | Comparison cannot establish the new desired state | Inspect Application conditions and repo-server output |
+| Spec matches but Pods fail probes | `Synced` can coexist with unhealthy rollout | Inspect Deployment conditions, Pods, and events |
+
+Automated sync normally considers the revision and application parameters, including whether a sync already succeeded for that combination. Self-heal permits another sync for live drift, subject to policy and eligibility. The documented default self-heal timeout is five seconds. Observed repair time also includes watch delivery, queueing, apply and Kubernetes convergence. Multi-source Applications can sync because another source changes, so disabling self-heal alone does not guarantee live edits persist. [Automated sync semantics](https://argo-cd.readthedocs.io/en/stable/user-guide/auto_sync/)
+
+### How Argo CD computes a difference
+
+The application controller uses cluster List/Watch to populate and update its live-state cache. Resource tracking identifies which live objects belong to an Application. Depending on configuration, Argo CD uses a tracking annotation, a label, or both. On a live change, Argo CD can update its cache and enqueue an application refresh. After a restart, persisted Kubernetes objects and the source revision allow it to rebuild that view. Inspect the Application's operation state if a restart interrupted an active sync. [Resource tracking](https://argo-cd.readthedocs.io/en/stable/user-guide/resource_tracking/) · [Controller cache](https://argo-cd.readthedocs.io/en/stable/operator-manual/high_availability/)
+
+Legacy diff uses desired state, live state and last-applied configuration where available. Server-Side Diff uses Server-Side Apply dry-run to predict the result for existing resources. The comparison strategy and the apply method describe different stages. Current stable documentation describes automatic Server-Side Diff when `ServerSideApply=true`, with an explicit opt-out. Earlier releases behave differently, so check the documentation for the installed version. Server-Side Diff can also be enabled explicitly. New objects skip its dry-run optimization, and including mutating webhook changes in comparison requires the corresponding compare option. [Diff strategies](https://argo-cd.readthedocs.io/en/stable/user-guide/diff-strategies/)
+
+If an HPA controls replicas, remove the explicit replica count from the steady-state deployment declaration where appropriate and review field ownership during the transition. `ignoreDifferences` modifies comparison. `RespectIgnoreDifferences=true` also applies that rule during sync for existing objects. See [Lesson 02](./lesson-02-core-resources.md) and [Argo CD sync options](https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/).
+
 ## 5. Sync waves and hooks
 
 A deployment can depend on a CRD, a database operator, and custom resources. Argo CD supports `argocd.argoproj.io/sync-wave` to order resources and hooks such as `PreSync`, `Sync`, and `PostSync` to run work in specific phases.
@@ -150,6 +185,8 @@ kubectl describe application payment -n argocd
 :::warning
 Practice pruning and hook-based migrations in a test environment. Do not delete PVCs or databases just to observe auto-prune behavior.
 :::
+
+Continue with the [hands-on GitOps lab](../03-gitops-delivery/gitops-lab.md) or practice the comparison loop, jitter, and quiz in the [interactive exercises](../03-gitops-delivery/gitops-exercises.mdx).
 
 ## 9. Questions to consider
 

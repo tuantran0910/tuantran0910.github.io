@@ -149,7 +149,60 @@ In staging, delete one stateless Pod and measure EndpointSlice convergence and t
 
 Sources: [GKE regional clusters](https://cloud.google.com/kubernetes-engine/docs/concepts/regional-clusters), [GKE simulated zone failure](https://cloud.google.com/kubernetes-engine/docs/tutorials/simulate-zone-failure), [Backup for GKE](https://cloud.google.com/kubernetes-engine/docs/add-on/backup-for-gke/concepts/backup-for-gke).
 
-## Self-Check Questions
+## Design for node, zone, and region failure separately
+
+Self-healing replaces a failed component. HA keeps a service available through failures within its design envelope. Fault tolerance describes continued correct service despite component failure. DR restores critical service when the surviving system can no longer meet the objective. Six replicas on one node share a failure domain. Six spread across three zones may survive a zone loss only if remaining serving capacity and dependencies can carry traffic.
+
+A kubelet reports node health through Node status and Leases. Missing heartbeats can indicate a crash, a partition or a control-plane communication failure. Kubernetes can mark the node unreachable and apply NoExecute taints. Ordinary Pods typically receive 300-second tolerations for not-ready and unreachable unless explicitly configured otherwise. Detection, eviction, replacement, scheduling, storage and readiness add independent delays. During a partition, old processes may still be running after the control plane decides they are unreachable. [Kubernetes node status](https://kubernetes.io/docs/reference/node/node-status/) · [Taints and tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/)
+
+A StatefulSet replacement must preserve ordinal identity and single-writer safety. Establish fencing before promoting or restarting a writer on a different node. Verify whether the previous process is stopped or cannot write, verify attachment and volume topology, and follow the tested CSI or database operator procedure. Forcing object deletion based solely on a stale node status can violate the unique-identity assumption. Once safe, the scheduler places the replacement, CSI attaches and mounts storage, and PostgreSQL replays WAL as required. Readiness and an end-to-end transaction establish when the service can return. [Force-delete StatefulSet Pod considerations](https://kubernetes.io/docs/tasks/run-application/force-delete-stateful-set-pod/)
+
+| Failure | Usually persists | Recovery constraint |
+|---|---|---|
+| Node loss | Other nodes and existing replicas | Detection and replacement timing, available capacity and disk placement |
+| Zone loss | Regional control plane and healthy zones, when designed for the fault | Worker placement, surviving capacity, eligible topology domains and data failover |
+| Kubernetes API outage | Existing containers and some programmed Service, LB and mesh paths | Scheduling, HPA, EndpointSlice changes and Argo CD sync can stall. Cached routing and credentials may age. |
+| Region loss | Only independently hosted services and data that remain reachable | Standby cluster, usable backup or replication, authorization, and traffic switching |
+
+Regional GKE replicates the control plane across zones within the region. A three-zone deployment with two Pods in each zone has four surviving Pods after one zone fails. If each reliably serves 600 requests per second, surviving capacity is 2,400 requests per second before any replacements. At 3,000 requests per second it can still overload. Test hard topology-spread constraints, eligible zones and minDomains with lost capacity. A PDB can constrain voluntary evictions such as drains. It cannot prevent an outage or add capacity. [Regional GKE clusters](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/regional-clusters)
+
+A zonal disk couples the workload to its zone. Regional Persistent Disk synchronously replicates a logical disk between two zones. It can support storage recovery after one zone fails, subject to the attachment mode and supported failover procedure. It does not elect a database primary or provide independent database replicas. A logical deletion is still a write that can be replicated. Keep recoverable historical copies and test fencing and failback. [Regional Persistent Disk](https://docs.cloud.google.com/compute/docs/disks/about-regional-persistent-disk)
+
+## Restore configuration and data with explicit ownership
+
+On self-managed Kubernetes, an etcd snapshot can restore API state. Protect the snapshot and encryption keys and rehearse restoration with compatible control-plane components. In managed GKE, operational etcd backups are managed by Google and are not a workload restore interface. GitOps, Backup for GKE, and database backups provide separate recovery paths.
+
+| Recovery input | Scope |
+|---|---|
+| Terraform and protected state | Replacement VPC, subnets, GKE, network access and IAM |
+| GitOps and pinned bootstrap artifacts | CRDs, operators, policies and stateless desired configuration |
+| BackupPlan | Defines source cluster, resource scope, schedule, retention, and inclusion options for Secrets or supported volume data |
+| RestorePlan | Defines target cluster, restore scope, resource conflict behavior, and volume handling |
+| Database backups and WAL | Validate application consistency and recover to a chosen point in time |
+| External configuration | Restore credentials and access to Secret Manager, registry, KMS, global frontends and managed data services |
+
+Provision or activate the recovery cluster, verify required controls and CRDs, then select which configuration comes from Git and which comes from backup. Hold workloads that can write until data recovery succeeds. Confirm CSI compatibility and external IAM, identities, DNS, credentials, and dependencies. An ExternalSecret object still needs a working operator and provider access. A restored infrastructure CR can trigger an external operation through its controller. Re-enable GitOps reconciliation only once authoritative inputs and the restore conflict policy agree. Test the recovered service before shifting traffic. [Backup for GKE](https://docs.cloud.google.com/kubernetes-engine/docs/add-on/backup-for-gke/concepts/backup-for-gke)
+
+Active-passive recovery promotes a standby after fencing the old writer, checking lag, and validating the target. Active-active HTTP serving can still depend on a single database writer. For true multi-writer data, design conflict resolution, ordering and partition behavior. Failback requires reestablishing replication in the right direction, verifying synchronization, fencing the currently active writer at the agreed point, and making a separate traffic decision. [Disaster recovery architecture](https://docs.cloud.google.com/architecture/disaster-recovery)
+
+## Run a Payment zone-loss game day
+
+Use an isolated topology representative of production. Set a measurable RTO of 30 minutes and an RPO of five minutes for the scenario. A sample sequential plan spends three minutes detecting the problem, two declaring failover, ten activating infrastructure, ten recovering state and five validating and switching traffic. Measure the critical path rather than assuming cloud timing. Compare the last recoverable committed transaction with the incident timeline to measure actual data loss.
+
+1. **Detect.** Check customer-facing RED signals, Load Balancer backend health, Service Health, and Kubernetes nodes, Pods, events, and EndpointSlices when the API is reachable. Distinguish zone loss from a node or control-plane connectivity failure.
+2. **Contain.** Pause risky releases. Observe remaining capacity and prevent conflicting database writes. Preserve incident timestamps and evidence.
+3. **Recover capacity.** Inspect scheduling and autoscaler decisions in healthy zones. Check affinity, volume placement and pool capacity before raising desired replicas.
+4. **Recover data.** Check primary status, lag and attachment state, then follow the verified database or storage failover procedure with fencing. Confirm integrity and recovery point.
+5. **Validate service.** Check rollout health, public probes, queue lag, errors, P95/P99, and a safe synthetic transaction. Measure RTO through business recovery.
+6. **Review and fail back.** Record elapsed time, actual recovery point, SLO budget consumed and corrective actions. Plan failback separately and rehearse it.
+
+Start game days with a stateless Pod replacement, then a test-node event, then the provider's regional zone-loss simulation. Capture readiness, endpoint convergence, node provisioning, and user impact. Run a separate restore exercise with fixture records, schema validation and WAL replay if used. Confirm data in the target before exercising traffic switching. [GKE zone failure simulation](https://docs.cloud.google.com/kubernetes-engine/docs/tutorials/simulate-zone-failure)
+
+Continue with [Lesson 18 — Kubernetes Security & Supply Chain](../08-security-governance/lesson-18-security.md).
+
+Practice with the [platform operations exercises](../06-compute-storage/platform-operations-exercises.mdx).
+
+## Self-check questions
 
 1. Which controller owns the desired state and the actual state in this context?
 2. What failure modes can occur even when the Kubernetes resource reports `Ready`?

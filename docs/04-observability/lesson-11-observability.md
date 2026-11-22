@@ -155,8 +155,205 @@ Alert on *symptoms*: SLO burn rate, elevated 5xx rates, and sustained high laten
 
 Sources: [Prometheus best practices](https://prometheus.io/docs/practices/), [OTel concepts](https://opentelemetry.io/docs/concepts/), [SRE workbook](https://sre.google/workbook/).
 
-## Self-check questions
+## Investigate a slow payment request
 
+Monitoring checks conditions you have anticipated, such as a sustained 5xx rate or a drop in ready replicas. Observability gives you the evidence to investigate new questions. Consider a customer whose `POST /payments` takes 4.8 seconds instead of 200 ms. CPU and Pod readiness look normal, so start with the request path.
+
+| Signal | Example evidence | How to use it |
+|---|---|---|
+| Metrics | Payment P95 rises to 4.8 seconds while the 5xx rate stays near 0.5% | Identify the affected time window, route, and revision. A percentile describes a population of requests. |
+| Structured logs | Payment emits a database timeout warning with a timestamp and `trace_id` | Find the corresponding operation and its application context. |
+| Distributed trace | Gateway takes 4,800 ms, Payment takes 4,600 ms, Fraud Check takes 350 ms, and the database span takes 3,950 ms | Inspect the long database span and use its evidence to check queries, connection pools, and contention. |
+
+A trace represents one request or related operation. Each span has a trace ID, a span ID, timestamps, and optional attributes, events, and status. A child span records its parent where applicable. Child spans can overlap or be nested, so calculate end-to-end latency from the root span or request timer. Follow the critical path when looking for the largest contributor. Propagate trace context across services, such as with W3C Trace Context for HTTP, and correlate structured logs with trace IDs. Sampling means a slow request may have no retained trace. [OpenTelemetry signals](https://opentelemetry.io/docs/concepts/signals/) · [OpenTelemetry context propagation](https://opentelemetry.io/docs/concepts/context-propagation/)
+
+## Follow a sample from the application into Prometheus
+
+An instrumented application or exporter exposes samples at an HTTP endpoint, commonly `/metrics`. Prometheus uses static targets or service discovery to locate endpoints and scrape them on a schedule. It adds target labels, stores timestamped samples in its local time-series database, and evaluates PromQL queries and rules over them. A recording rule stores a derived time series. An alerting rule evaluates a condition and sends firing alerts to Alertmanager when configured. Alertmanager handles grouping, routing, deduplication, and silences.
+
+```text
+http_requests_total{service="payment",status="200"} 120000
+http_requests_total{service="payment",status="500"} 250
+```
+
+For a single-target lab, configure a static scrape job. In a replicated Kubernetes deployment, discover individual Pod endpoints so consecutive scrapes for one series represent the same target. Scraping a load-balanced Service can alternate between Pods with independent counters.
+
+```yaml
+scrape_configs:
+  - job_name: payment
+    scrape_interval: 15s
+    static_configs:
+      - targets: ["payment.metrics.svc:9090"]
+```
+
+The example assumes the target endpoint is reachable from Prometheus. Scraping observes application state. Argo Rollouts can query those observations and take a release action through its own reconciliation loop. A time series is identified by its metric name and complete label set. For example, 10 targets × 20 routes × 6 status codes can produce 1,200 request-counter series before adding other labels. Each classic histogram bucket introduces additional series. Keep labels bounded, use route templates such as `/payments/{id}`, and record request IDs in logs and traces. Where supported, exemplars can link a measurement to a trace without putting a unique trace ID on every metric series. [Prometheus overview](https://prometheus.io/docs/introduction/overview/) · [Data model](https://prometheus.io/docs/concepts/data_model/) · [Storage](https://prometheus.io/docs/prometheus/latest/storage/)
+
+### Choose a metric type for the measurement
+
+| Type | What it records | Example and query behavior |
+|---|---|---|
+| Counter | A cumulative value that can reset | Requests served. Apply `rate()` to each series before summing so resets are handled per target. `increase()` estimates the count over a window using extrapolation. |
+| Gauge | A value that can rise or fall | Active connections or queue depth. Query the current level or use a time aggregation such as `max_over_time()`. |
+| Histogram | Counts observations across a distribution | Request duration. Classic histograms expose cumulative buckets, a sum, and a count. The `le="0.3"` bucket counts observations up to 300 ms. |
+| Summary | Observed count and sum, with optional client-calculated quantiles | Client-side latency quantiles describe one stream. Aggregate compatible histogram distributions to obtain a service-wide quantile. |
+
+For example, 95 requests at 100 ms and five at 3,000 ms average 245 ms. P95 sits at or near the boundary of the slow group depending on the estimator, while P99 captures the tail. Query P95 and P99 by changing the quantile argument in the classic histogram query above. Keep `le` when aggregating classic buckets. For native histograms, aggregate histogram samples directly:
+
+```promql
+histogram_quantile(
+  0.95,
+  sum(rate(http_request_duration_seconds{service="payment"}[5m]))
+)
+```
+
+For a latency SLI that asks whether requests complete within 300 ms, use the cumulative classic bucket at `le="0.3"` divided by the corresponding count. Choose bucket boundaries that support your objectives. Validate the sample volume before interpreting either a percentile or a ratio. A missing series can leave the result empty, while an existing zero denominator can yield NaN. Monitor telemetry coverage separately. [Prometheus metric types](https://prometheus.io/docs/concepts/metric_types/) · [PromQL functions](https://prometheus.io/docs/prometheus/latest/querying/functions/)
+
+Use RED on Payment to measure request rate, 5xx fraction, and duration. When duration rises, use USE to investigate resource utilization, saturation, and errors. For example, compare database pool occupancy with queued requests and connection failures. A pool can saturate even when node CPU is low.
+
+## Send traces through an OpenTelemetry Collector
+
+The SDK creates spans and propagates context. The Collector receives, processes, and exports telemetry. The following trace pipeline receives OTLP over gRPC, applies memory limiting before batching, and forwards spans to a lab backend.
+
+```yaml
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 512
+  batch: {}
+exporters:
+  otlp:
+    endpoint: tracing-backend:4317
+    tls:
+      insecure: true
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp]
+```
+
+Expose this lab receiver only on the intended network. For production, configure TLS and access controls, size the memory limiter against the container limit, and test exporter queues and backpressure. With tail sampling, keep spans for a given trace on the same sampling instance so it can evaluate the trace together. Prometheus can scrape applications directly while spans flow through the Collector. Logs and metrics can use independent Collector pipelines where needed. [OpenTelemetry Collector architecture](https://opentelemetry.io/docs/collector/architecture/) · [Scaling the Collector](https://opentelemetry.io/docs/collector/scaling/)
+
+## Turn a Payment SLI into an operating decision
+
+| Concept | Payment example |
+|---|---|
+| SLI | Good requests divided by eligible requests. Of 1,000,000 eligible requests, 999,500 good requests yield 99.95%. |
+| SLO | At least 99.9% of eligible requests are good over a rolling 30-day window. |
+| SLA | An agreement with a customer that defines a service level and any consequences for missing it. The contractual definition and window may differ from the engineering SLO. |
+
+Write down where you measure requests, how you treat retries and duplicate attempts, and which outcomes count as good. Classify client-caused 4xx responses deliberately. A payment decline and a payment processing failure can both produce non-5xx responses but represent different business outcomes. Use a purpose-built good or bad counter when an HTTP-status proxy is insufficient.
+
+For 99.9%, the allowed bad fraction is `1 - 0.999 = 0.001`. One million eligible requests give a 1,000-request budget. Five hundred bad requests consume 50%, leaving 500. The burn rate is observed bad fraction divided by allowed bad fraction. An observed 1% consumes budget at 10× the allowed rate. A 5% error rate gives 50×. A time-based SLI measures a separate quantity and should be calculated from its own definition.
+
+Record what the team does as the budget shrinks. For example, the team can defer high-risk changes, prioritize incident follow-up, and restore the normal release cadence after the budget recovers. [Google SRE Workbook on implementing SLOs](https://sre.google/workbook/implementing-slos/)
+
+### Use paired windows to detect fast and sustained burn
+
+| Action | Long window | Short window | Threshold | Bad fraction at a 99.9% SLO |
+|---|---:|---:|---:|---:|
+| Page quickly | 1 hour | 5 minutes | 14.4× | 1.44% |
+| Page for sustained burn | 6 hours | 30 minutes | 6× | 0.6% |
+| Open a ticket | 3 days | 6 hours | 1× | 0.1% |
+
+Both windows in a pair must exceed the threshold. The long window reflects accumulated impact. The short window confirms the service is still burning budget rapidly and lets the alert clear sooner after recovery. Use OR between the two paging branches. The Google SRE reference also describes slower ticket variants. At steady request volume, 14.4× over one hour consumes approximately 2% of a 30-day budget. A request-based budget can burn faster or slower when traffic varies. [Google SRE Workbook on alerting on SLOs](https://sre.google/workbook/alerting-on-slos/)
+
+The rule file below uses `payment_slo_requests_total{outcome="good|bad"}` for events already classified as eligible. Initialize both outcome series on each instrumented instance. The example assumes a single environment and a backend with sufficient history for the longest window. Write the recording rules and alert expressions into a Prometheus rule file, then include it from `rule_files` or put the rule groups in a Prometheus Operator `PrometheusRule` resource.
+
+```yaml
+groups:
+  - name: payment-slo
+    rules:
+      - record: payment:slo_error_ratio:rate5m
+        expr: |
+          sum(rate(payment_slo_requests_total{outcome="bad"}[5m]))
+          /
+          sum(rate(payment_slo_requests_total{outcome=~"good|bad"}[5m]))
+      - record: payment:slo_error_ratio:rate30m
+        expr: |
+          sum(rate(payment_slo_requests_total{outcome="bad"}[30m]))
+          /
+          sum(rate(payment_slo_requests_total{outcome=~"good|bad"}[30m]))
+      - record: payment:slo_error_ratio:rate1h
+        expr: |
+          sum(rate(payment_slo_requests_total{outcome="bad"}[1h]))
+          /
+          sum(rate(payment_slo_requests_total{outcome=~"good|bad"}[1h]))
+      - record: payment:slo_error_ratio:rate6h
+        expr: |
+          sum(rate(payment_slo_requests_total{outcome="bad"}[6h]))
+          /
+          sum(rate(payment_slo_requests_total{outcome=~"good|bad"}[6h]))
+      - record: payment:slo_error_ratio:rate3d
+        expr: |
+          sum(rate(payment_slo_requests_total{outcome="bad"}[3d]))
+          /
+          sum(rate(payment_slo_requests_total{outcome=~"good|bad"}[3d]))
+      - alert: PaymentSLOBurnPage
+        expr: |
+          (payment:slo_error_ratio:rate1h > 14.4 * 0.001
+           and payment:slo_error_ratio:rate5m > 14.4 * 0.001)
+          or
+          (payment:slo_error_ratio:rate6h > 6 * 0.001
+           and payment:slo_error_ratio:rate30m > 6 * 0.001)
+        labels:
+          severity: page
+        annotations:
+          summary: Payment availability budget is burning rapidly
+      - alert: PaymentSLOBurnTicket
+        expr: |
+          payment:slo_error_ratio:rate3d > 0.001
+          and payment:slo_error_ratio:rate6h > 0.001
+        labels:
+          severity: ticket
+        annotations:
+          summary: Payment availability budget is burning slowly
+```
+
+A zero denominator or missing measurements do not fire these ratio-based rules. Add telemetry coverage alerts and use synthetic probes where low traffic makes user-request rates unreliable. Route page and ticket severities in Alertmanager and link an incident runbook. During a page, verify affected users and the current burn rate, inspect recent deployments and traces, then record mitigation and recovery evidence. Test rules with `promtool check rules payment-slo.yaml` and cases for healthy traffic, fast and slow burn, recovery, and missing telemetry. [Prometheus recording rules](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/) · [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/)
+
+## Use the same telemetry for canary analysis
+
+A canary gate evaluates exposure to one candidate revision at specific rollout steps. SLO alerts monitor service reliability even when no release is underway. A healthy stable revision can dilute a failing canary in the service-wide SLI. Query the candidate by revision. As a separate check, compare a qualified candidate with the stable baseline under comparable traffic.
+
+Reuse the [Lesson 10 candidate AnalysisTemplate](../03-gitops-delivery/lesson-10-progressive-delivery.md#scope-each-measurement-to-the-candidate). For a 1% candidate 5xx limit, use `status=~"5.."` in its numerator, keeping the fallback for an absent 5xx series and sample-count filter. Set these measurement conditions:
+
+```yaml
+successCondition: >
+  len(result) == 1 && !isNaN(result[0]) &&
+  !isInf(result[0]) && result[0] <= 0.01
+failureCondition: >
+  len(result) == 1 && !isNaN(result[0]) &&
+  !isInf(result[0]) && result[0] > 0.01
+```
+
+With both conditions present, empty or non-finite data is inconclusive. Provider failures follow the metric error policy. Set `failureLimit: 1` to tolerate one failing measurement and fail on the second. Keep the inconclusive and error limits intentional. Allow a full five-minute query window to fill at the intended exposure before measuring, and confirm sufficient candidate traffic. Use the gate to promote, pause, or abort an update. Maintain separate SLO alerts to page or create tickets for service-wide impact. [Argo Rollouts analysis](https://argoproj.github.io/argo-rollouts/features/analysis/) · [Argo Rollouts Prometheus provider](https://argoproj.github.io/argo-rollouts/analysis/prometheus/)
+
+## Lab from instrumentation to release verification
+
+1. Install Prometheus and Grafana in a test cluster. Instrument Payment with the request counter, a compatible classic latency histogram, and an eligible outcome counter.
+2. Configure endpoint discovery and verify target health. In Prometheus, run the RED queries above and confirm the expected labels and sample volume.
+3. Configure OTLP tracing and send a slow request through two instrumented services. Find a trace and correlate it with a structured log entry.
+4. Generate HTTP 500 responses, increase latency, and make a lab Pod unready in separate runs. Compare how RED signals, traces, and workload status respond to each event.
+5. Define eligible requests and good outcomes. Load the rule file and verify the recording series, paging branches, ticket threshold, and recovery behavior.
+6. Send candidate traffic to Argo Rollouts and verify successful, failed, and inconclusive outcomes. Compare them against the service-wide SLI and confirm the release action independently.
+
+```bash
+kubectl get pods,services -n monitoring
+kubectl port-forward -n monitoring svc/prometheus-operated 9090:9090
+```
+
+Use the actual Prometheus Service name from your installation and query the local endpoint at `http://localhost:9090`.
+
+Try the [error budget calculator and knowledge check](./observability-exercises.mdx), then continue with [Lesson 12 — Kubernetes Networking Internals](../05-networking/lesson-12-kubernetes-networking.md) to follow traffic through Pod and Node networking, Services, EndpointSlices, DNS, and Kubernetes policy.
+
+## Self-check questions
 1. Which controller owns the desired state and the actual state in this context?
 2. What failure modes can occur even when the Kubernetes resource reports `Ready`?
 3. What would you verify before deploying to production?

@@ -16,12 +16,12 @@ export default function Search() {
       return terms.every(t => hay.includes(t));
     });
   }, [query]);
-  return <Layout title="Handbook Search" description="Search all Cloud Native Engineering Handbook lessons">
+  return <Layout title="Handbook Search" description="Search all Cloud Native Engineering Handbook pages">
     <main className="container margin-vert--lg">
       <h1>Search the handbook</h1>
-      <p>Search runs locally in your browser.</p>
-      <input aria-label="Search lessons" className="search-input" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Try CSI, Istio, HPA, or NetworkPolicy" />
-      <p className="margin-top--md" role="status">{items.length} {items.length === 1 ? 'lesson' : 'lessons'} found</p>
+      <p>Search runs locally in your browser across lessons, labs, guides, exercises, and reference pages.</p>
+      <input aria-label="Search handbook pages" className="search-input" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Try CSI, Istio, HPA, or NetworkPolicy" />
+      <p className="margin-top--md" role="status">{items.length} {items.length === 1 ? 'page' : 'pages'} found</p>
       <div className="card-grid">{items.map(item => <Link key={item.url} className="topic-card" to={`/handbook${item.url}`}>
         <h3>{item.title}</h3><p>{item.text.slice(0, 190)}…</p>
       </Link>)}</div>

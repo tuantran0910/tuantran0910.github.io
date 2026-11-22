@@ -1,0 +1,19 @@
+---
+title: "Observability and SRE Exercises"
+sidebar_position: 23
+tags: [observability, sre, prometheus]
+---
+
+import {ErrorBudgetExercise, ObservabilityQuiz} from '@site/src/components/GitOpsExercises';
+
+## Calculate a request-based error budget
+
+Start with a 99.9% SLO, one million eligible requests, and an observed error rate of 0.05%. Change the SLO or error rate to see what happens when the budget is exceeded. The model uses a single request population and one aggregate error rate. Production alerts calculate separate paired-window burn rates.
+
+<ErrorBudgetExercise />
+
+## Check your observability and SRE understanding
+
+<ObservabilityQuiz />
+
+Continue with [the Payment observability lab](./lesson-11-observability.md#lab-from-instrumentation-to-release-verification).

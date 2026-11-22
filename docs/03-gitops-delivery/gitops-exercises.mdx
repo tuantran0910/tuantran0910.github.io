@@ -1,0 +1,135 @@
+---
+title: "GitOps Interactive Exercises"
+sidebar_position: 23
+tags: [gitops, argocd, helm, kustomize]
+---
+
+import {ManifestExercise, SyncExercise, JitterExercise, ArgoQuiz, SsaConflictExercise, ApplyComparisonExercise, StructuredMergeExercise, ApplicationMatrixExercise, ApplicationSetQuiz, PromotionExercise, ReleaseChecklist, GitOpsSecurityQuiz, AdmissionQuiz, WebAppReconcileExercise, OperatorQuiz} from '@site/src/components/GitOpsExercises';
+
+## Render an environment
+
+Pick a generator and environment. Compare which input fields change and which Deployment fields they produce. The preview illustrates the manifest excerpts rather than executing Helm or Kustomize in the browser.
+
+<ManifestExercise />
+
+Continue with the full [Helm and Kustomize walkthrough](./helm-kustomize.md).
+
+## Model auto-sync and self-heal
+
+Start with five live replicas at a previously synced revision. Pick a new Git revision or a live-only edit. Predict the result before advancing the controller. Each click models one comparison and, when eligible, one successful sync. A real cluster adds time for rendering, permissions, queued operations and workload rollout.
+
+<SyncExercise />
+
+Reproduce the scenario in the [hands-on GitOps lab](./gitops-lab.md).
+
+## See how jitter spreads refresh work
+
+Assume 1,000 Applications become eligible at the same time. Adjust the maximum delay added to the base interval of 120 seconds. The chart uses an illustrative uniform distribution so the same settings always yield the same result. Queue capacity and processing time are outside the model.
+
+<JitterExercise />
+
+## Simulate an SSA field conflict
+
+Start with `team-a` owning `spec.replicas: 3`. Try applying five as `team-b`. After the conflict, apply three to share ownership. Then try to change the shared value and observe what happens with and without force. The simulator models one field on an existing object. The cluster lab also covers how an owner can relinquish the field by omitting it from its next intent.
+
+<SsaConflictExercise />
+
+Continue with the [SSA ownership lab](../01-foundations/lesson-02-core-resources.md#isolate-the-conflict-to-one-field).
+
+## Compare CSA and SSA after live drift
+
+The live Deployment starts at eight replicas. Select the apply method and the next declaration. In the CSA scenario, the checkbox controls whether the last-applied annotation included replicas. In the independent SSA scenario, an external manager owns the live replica count. This exercise models each selection from the same initial live object and assumes ordinary Deployment defaulting without admission mutations or concurrent changes.
+
+<ApplyComparisonExercise />
+
+Read the [worked patch calculation](../01-foundations/lesson-02-core-resources.md#trace-the-same-replica-drift-through-csa-and-ssa) before trying the server dry run.
+
+## Compare atomic and keyed list ownership
+
+The same resource contains payment and logging backends. In the atomic case, Manager A owns the whole list. In the keyed case, Manager A owns the payment fields and the logging entry identity, and the live logging URL has no owner. Manager B starts with no ownership. Toggle the list schema, submitted intent, and force option. Each selection starts with the same live state.
+
+<StructuredMergeExercise />
+
+Try the [APIConfig lab](../01-foundations/lesson-03-cluster-architecture.md#install-an-apiconfig-crd-with-two-list-topologies) to inspect the actual field sets.
+
+## Simulate an ApplicationSet Matrix
+
+Select service directories and registered cluster names. Each selected directory is paired with every selected cluster. The output lists the desired Application CR names. Removing a cluster from this preview removes its combinations from the desired set. On a real cluster, ApplicationSet policy and deletion finalizers determine what happens to existing Applications and workloads.
+
+<ApplicationMatrixExercise />
+
+See the [complete Matrix ApplicationSet](../02-controllers-platform/lesson-04-controller-foundations.md#combine-services-with-eligible-cluster-registrations).
+
+## Check your ApplicationSet understanding
+
+<ApplicationSetQuiz />
+
+Continue with [repository design and environment promotion](./gitops-promotion.md).
+
+## Promote a release through environments
+
+Development is already running the candidate image and its checks passed. Promote the same artifact to staging, then require staging test results and production approval before updating production. This exercise models changes to deployment configuration. The release gates and reconciliations are simulated.
+
+<PromotionExercise />
+
+Read the [complete promotion and rollback walkthrough](./gitops-promotion.md).
+
+## Track the production GitOps lab
+
+Use this checklist alongside the [release workflow](./gitops-promotion.md#verify-the-workflow-in-a-lab). Check off each task after validating its result.
+
+<ReleaseChecklist />
+
+## Check your GitOps security understanding
+
+Follow the secret value from the external provider to a running process, then identify which layer authorizes the API request.
+
+<GitOpsSecurityQuiz />
+
+Review [Workload Identity and External Secrets](../02-controllers-platform/lesson-06-workload-identity-secrets.md) and [admission policy bindings](../02-controllers-platform/lesson-07-admission.md#apply-one-policy-with-different-enforcement).
+
+## Check your admission control understanding
+
+Trace how a webhook changes an object, what happens when a call times out, and how admission affects Argo CD's prediction.
+
+<AdmissionQuiz />
+
+Review [Admission Controllers and Policy](../02-controllers-platform/lesson-07-admission.md) and try its [SSA dry-run lab](../02-controllers-platform/lesson-07-admission.md#exercise-the-api-pipeline-with-ssa-and-server-dry-run).
+
+## Reconcile a WebApp
+
+Edit the WebApp's desired count, run reconciliation, then scale the Deployment directly and run reconciliation again. An actual controller gets those requests through watches and its queue. Here the button models processing one request against current state. The Deployment count is `spec.replicas`; rollout readiness is outside the simulator.
+
+<WebAppReconcileExercise />
+
+Try a second run after the counts match. The run counter should increase without another Deployment write. See the [WebApp controller lab](../02-controllers-platform/lesson-08-operators.md#scaffold-and-implement-the-webapp-operator).
+
+## Check your operator understanding
+
+<OperatorQuiz />
+
+## Check your understanding
+
+Select an answer for each question and check your reasoning.
+
+<ArgoQuiz />
+
+import {RollingUpdateExercise, CanaryAnalysisExercise, ProgressiveDeliveryQuiz} from '@site/src/components/GitOpsExercises';
+
+## Model a Deployment rolling update
+
+Step through a four-replica update with one surge slot and zero allowed unavailability. The model omits terminating Pods and shows selected states. Readiness, scheduling and termination determine the actual timeline.
+
+<RollingUpdateExercise />
+
+## Evaluate a canary measurement
+
+Choose a traffic weight and enter the observed request count, success rate, and P95 latency. The traffic weight describes exposure and does not generate or change the measurements. This exercise evaluates one window. A real AnalysisRun can evaluate multiple windows and apply separate limits to failed, inconclusive and error outcomes.
+
+<CanaryAnalysisExercise />
+
+## Check your progressive delivery understanding
+
+<ProgressiveDeliveryQuiz />
+
+Continue with the [full progressive delivery lesson](./lesson-10-progressive-delivery.md).

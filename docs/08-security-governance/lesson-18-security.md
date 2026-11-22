@@ -178,8 +178,124 @@ On GKE, Binary Authorization can enforce image attestation rules. For Kubernetes
 
 Sources: [Pod Security Standards](https://kubernetes.io/docs/concepts/security/pod-security-standards/), [RBAC good practices](https://kubernetes.io/docs/concepts/security/rbac-good-practices/), [Sigstore](https://docs.sigstore.dev/), [Binary Authorization](https://cloud.google.com/binary-authorization/docs/overview).
 
-## Self-check questions
+## Follow the security controls from source to runtime
 
+Assume that Payment is processing requests normally after a workload compromise. Running, Available and Synced describe operational state. Security evidence comes from API audit logs, workload identity, image verification, runtime telemetry and network records. Establish what the compromised process can access and contain its reach at each boundary.
+
+| Boundary | Control and evidence |
+|---|---|
+| Source and dependencies | Protected reviews, dependency inventory, and vulnerability review |
+| Build | Isolated CI, trusted builder, source revision, and verifiable provenance |
+| Registry | Digest-pinned artifacts, publishing IAM, scanning, and signature or attestation evidence |
+| GitOps and admission | Reviewed promotion, scoped repositories and destinations, API and artifact policy |
+| Runtime | Least privilege, restricted Pod configuration, workload identity, network segmentation and detection |
+| Recovery | Evidence retention, credential rotation, trusted redeployment and recovery validation |
+
+### Apply Pod Security and runtime restrictions
+
+The Pod Security Standards define Privileged, Baseline and Restricted. Pod Security Admission can enforce one level while warning and auditing against another. A staged migration can enforce Baseline, set Warn and Audit to Restricted, verify sidecars and init containers, then enforce Restricted in application namespaces. Administrators should own the labels and pin versions where predictable behavior across upgrades matters. Keep platform agents that require exceptional host privileges in separately governed namespaces.
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: payment-security-check
+  namespace: security-lab
+spec:
+  serviceAccountName: default
+  automountServiceAccountToken: false
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+    runAsGroup: 10001
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: payment
+      image: registry.example.com/payment@sha256:REPLACE_WITH_DIGEST
+      securityContext:
+        privileged: false
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: [ALL]
+      resources:
+        requests: {cpu: 250m, memory: 256Mi}
+        limits: {memory: 512Mi}
+      volumeMounts:
+        - name: scratch
+          mountPath: /tmp
+  volumes:
+    - name: scratch
+      emptyDir: {}
+```
+
+Use a real digest and an image tested as UID 10001. The read-only root filesystem is an additional control and temporary writes go to the mounted volume. Verify volume permissions with the actual runtime user. Seccomp constrains system calls and dropping capabilities removes unnecessary kernel privileges. Sandbox runtimes or dedicated infrastructure can further narrow exposure for workloads with stronger isolation requirements. [Pod Security Standards](https://kubernetes.io/docs/concepts/security/pod-security-standards/) · [Pod Security Admission](https://kubernetes.io/docs/concepts/security/pod-security-admission/)
+
+### Review effective identity and resource access
+
+For Payment with no Kubernetes API requirement, keep token automount disabled and avoid creating an application RoleBinding. For a distinct consumer that needs to read one named ConfigMap, grant only get with resourceNames matching that ConfigMap. Review effective permissions from workload creation, mounts, and ServiceAccount assignment in addition to direct RBAC. Keep privileged ServiceAccounts away from namespaces with broadly delegated workload writes. Restrict binding, role escalation, impersonation, token issuance, and exec permissions to their intended administrative identities. Validate both allowed and denied requests from an authorized audit identity. [RBAC good practices](https://kubernetes.io/docs/concepts/security/rbac-good-practices/)
+
+Short-lived projected Kubernetes credentials have an audience and lifetime and can rotate through kubelet. An explicit projection can serve a required audience even when automount is disabled. Workload Identity Federation for GKE uses its own metadata and IAM flow, while Istio uses workload certificates and mesh policies. Confirm which identity is used on each path. Limit Google IAM to the specific required resource. Keep Secret Manager and ESO identities narrowly scoped. Base64 encodes Kubernetes Secret data, so protect access with RBAC, encryption and KMS controls where applicable. Include backups, logs, Git history, rotation, and what the authorized application process can read in the review. [GKE cluster hardening](https://docs.cloud.google.com/kubernetes-engine/docs/how-to/hardening-your-cluster) · [Workload Identity Federation for GKE](https://docs.cloud.google.com/kubernetes-engine/docs/concepts/workload-identity)
+
+### Verify what was built and what may run
+
+- **Digest** identifies a specific artifact. A tag can move.
+- **SBOM** inventories components and can help assess the impact of newly disclosed vulnerabilities.
+- **Provenance** associates the artifact with source, revision, builder, and build inputs.
+- **Signature** verifies integrity and a signing key or identity against a trust policy.
+- **Attestation** conveys a signed claim about the artifact, such as approved testing or build provenance.
+
+For keyless Cosign verification, require the expected certificate identity and OIDC issuer as well as the signature on the deployed digest. A valid signature alone says little about vulnerabilities or whether the signer is trusted. Evaluate approved repository and workflow, attestation subject, build requirements, and scanner findings separately. SLSA levels apply to defined tracks with specific requirements. A signature or SBOM does not by itself establish a level. [Cosign](https://docs.sigstore.dev/cosign/overview/) · [SLSA specification](https://slsa.dev/spec/v1.2/)
+
+Use a cluster-scoped CEL policy bound to selected namespaces to validate deterministic properties such as digest syntax. This example audits and warns initially. It includes regular and init containers as well as ephemeral containers on their write subresource. Rehearse enforcement in an isolated namespace before changing validationActions.
+
+```yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: application-image-digests
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [pods, pods/ephemeralcontainers]
+  validations:
+    - expression: >-
+        object.spec.containers.all(c, c.image.matches('^.+@sha256:[0-9a-f]{64}$')) &&
+        (!has(object.spec.initContainers) || object.spec.initContainers.all(c, c.image.matches('^.+@sha256:[0-9a-f]{64}$'))) &&
+        (!has(object.spec.ephemeralContainers) || object.spec.ephemeralContainers.all(c, c.image.matches('^.+@sha256:[0-9a-f]{64}$')))
+      message: Use SHA-256 digest references for all Pod images.
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: application-image-digests
+spec:
+  policyName: application-image-digests
+  validationActions: [Warn, Audit]
+  matchResources:
+    namespaceSelector:
+      matchLabels:
+        image-policy: managed
+```
+
+The policy checks references when Pods are admitted. Use a separate verifier, such as configured Kyverno image verification or GKE Binary Authorization, for evidence external to the manifest. Binary Authorization can enforce attestor requirements on an image digest. A Deployment object may sync while its ReplicaSet reports denied Pod creations. Inspect events, health and the admission decision independently. [ValidatingAdmissionPolicy](https://kubernetes.io/docs/reference/access-authn-authz/validating-admission-policy/) · [Binary Authorization](https://docs.cloud.google.com/binary-authorization/docs/overview)
+
+### Test the boundaries independently
+
+Protect production Git paths with required checks and reviews. Keep AppProject definitions and deployment credentials under platform administration. Scope source repositories, resource kinds, destinations, and Argo CD RBAC, then verify API credentials independently. A project that can deploy into the Argo CD control-plane namespace warrants administrative trust.
+
+In a lab, enable Restricted for a test namespace and verify the hardened Pod passes a server dry-run. Use a benign fixture that omits required security settings to confirm denial without starting a workload. Verify intended ConfigMap access and denied Secret listing, digest policy warnings, and approved network flows. At runtime, investigate unexpected processes, API calls, outbound traffic, and privilege-related events. Preserve evidence, identify affected identities, isolate through approved controls, rotate exposed credentials, redeploy trusted digests, and confirm recovery through audit and service telemetry.
+
+Continue with [Lesson 19 — Multi-Tenancy](./lesson-19-multi-tenancy.md).
+
+Practice with the [platform operations exercises](../06-compute-storage/platform-operations-exercises.mdx).
+
+## Self-check questions
 1. Which controller owns the desired state and the actual state in this lesson?
 2. What failure modes can occur even when the Kubernetes resource reports `Ready`?
 3. What would you verify before deploying to production?
