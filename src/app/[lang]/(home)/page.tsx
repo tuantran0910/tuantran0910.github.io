@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import {ArrowRight, BookOpen, Compass, FolderGit2, Layers} from 'lucide-react';
+import {ArrowRight, BookOpen, FolderGit2, Layers} from 'lucide-react';
 
 export default async function HomePage({
   params,
@@ -88,7 +88,7 @@ export default async function HomePage({
               : 'Structured deep dives, architecture walkthroughs, hands-on labs, and interactive exercises.'}
           </p>
         </div>
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           <Link
             href={`/${lang}/handbook`}
             className="group flex flex-col justify-between rounded-xl border border-fd-border bg-fd-card p-6 transition-colors hover:border-fd-primary/50 hover:bg-fd-accent/40"
@@ -100,33 +100,12 @@ export default async function HomePage({
               </h3>
               <p className="mt-2 text-sm text-fd-muted-foreground">
                 {isVi
-                  ? '19 bài học, lab thực hành và bài tập tương tác về Kubernetes, Argo CD, GKE, Istio và SRE.'
-                  : '19 lessons, hands-on labs, and interactive exercises covering Kubernetes, Argo CD, GKE, Istio, and SRE.'}
+                  ? 'Theo dõi lộ trình 19 bài học từ SSA và controllers đến GitOps, networking, observability, bảo mật và multi-tenancy — kèm lab thực hành và bài tập tương tác.'
+                  : 'Follow the 19-lesson learning path from SSA and controllers to GitOps, networking, observability, security, and multi-tenancy — with hands-on labs and interactive exercises.'}
               </p>
             </div>
             <span className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-fd-primary">
               {isVi ? 'Mở sổ tay' : 'Open handbook'}{' '}
-              <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
-            </span>
-          </Link>
-
-          <Link
-            href={`/${lang}/handbook/learning-path`}
-            className="group flex flex-col justify-between rounded-xl border border-fd-border bg-fd-card p-6 transition-colors hover:border-fd-primary/50 hover:bg-fd-accent/40"
-          >
-            <div>
-              <Compass className="mb-3 size-5 text-fd-primary" />
-              <h3 className="text-base font-semibold text-fd-foreground">
-                {isVi ? 'Lộ trình học tập' : 'Learning Path'}
-              </h3>
-              <p className="mt-2 text-sm text-fd-muted-foreground">
-                {isVi
-                  ? 'Theo dõi 19 bài học theo thứ tự từ SSA, controllers đến bảo mật và multi-tenancy.'
-                  : 'Follow the 19-lesson curriculum in order from SSA and controllers to security and multi-tenancy.'}
-              </p>
-            </div>
-            <span className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-fd-primary">
-              {isVi ? 'Bắt đầu học' : 'Start learning'}{' '}
               <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
             </span>
           </Link>
