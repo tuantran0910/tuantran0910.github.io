@@ -1,0 +1,17 @@
+{
+  "title": "Sổ tay",
+  "pages": [
+    "index",
+    "learning-path",
+    "topics",
+    "01-foundations",
+    "02-controllers-platform",
+    "03-gitops-delivery",
+    "04-observability",
+    "05-networking",
+    "06-compute-storage",
+    "07-reliability",
+    "08-security-governance",
+    "reference"
+  ]
+}
