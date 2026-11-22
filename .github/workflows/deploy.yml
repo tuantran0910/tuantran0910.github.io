@@ -22,6 +22,7 @@ jobs:
           python scripts/check_lessons.py
           python scripts/check_links.py
           python scripts/verify_yaml.py
+          python scripts/check_handbook_quality.py
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

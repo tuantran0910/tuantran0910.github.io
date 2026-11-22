@@ -1,8 +1,10 @@
 import type {Metadata} from 'next';
 import type {ReactNode} from 'react';
+import {SITE_URL} from '@/lib/site';
 import './global.css';
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
     default: 'Tuan Tran — Cloud Native Engineering Handbook',
     template: '%s | Tuan Tran',

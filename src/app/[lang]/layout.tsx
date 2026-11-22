@@ -1,5 +1,6 @@
 import {RootProvider} from 'fumadocs-ui/provider/next';
 import {i18n, i18nUI} from '@/lib/i18n';
+import {HtmlLangSync} from '@/components/HtmlLangSync';
 import type {ReactNode} from 'react';
 
 export function generateStaticParams() {
@@ -29,6 +30,7 @@ export default async function LangLayout({
         },
       }}
     >
+      <HtmlLangSync lang={lang} />
       {children}
     </RootProvider>
   );
